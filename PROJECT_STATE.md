@@ -2,7 +2,7 @@
 
 > Canonical context for future ChatGPT Sites / Codex work. Read this file first; do not rescan the whole project unless the task genuinely requires it.
 
-**Last updated:** 2026-08-14  
+**Last updated:** 2026-08-15  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
 **Current deployed version:** v0.5
 
@@ -146,7 +146,14 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - No confirmed v0.5 release blocker.
 - Device-specific follow-up: repeat the long-press smoke test on physical iPhone Safari when convenient; implementation now prevents default native actions only on interactive unit pieces and preserves normal browser behavior elsewhere.
 
-## 15. Next-task protocol
+## 15. v0.6 working branch (not yet deployed)
+
+- Opening player units are randomized from distinct 1-cost units using the expedition seed instead of always starting with Tunnel Guard + Pickaxe Scout.
+- Board now shows compact live synergy-progress totems sourced from the existing authoritative synergy rows.
+- Mobile HUD restores visible XP, emphasizes level and Gold, shrinks the Shop/status footprint, and removes remaining mobile piece bases including Bench bases.
+- Desktop Shop and Bench chrome are reduced to return more vertical space to the Board.
+
+## 16. Next-task protocol
 
 1. Read this file first.
 2. Reproduce the reported issue in the current deployed build.
