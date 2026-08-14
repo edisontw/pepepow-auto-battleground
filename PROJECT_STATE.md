@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-08-15  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
-**Current deployed version:** v0.5
+**Current deployed version:** v0.6
 
 ## 1. Product direction
 
@@ -16,7 +16,16 @@
 
 ## 2. Current release state
 
-v0.5 is the active release. It preserves v0.4 gameplay and adds:
+v0.6 is the active release. It preserves v0.5 gameplay and adds:
+
+- synergy totems on the Board
+- randomized opening units
+- a compact mobile Shop
+- mobile XP display, larger Level, and clearer Gold
+- removal of mobile unit bases
+- a smaller desktop Shop and Bench with a larger Board
+
+The v0.5 responsive, input, archive, and battlefield presentation improvements remain active:
 
 - desktop viewport fitting at 1920×1080, 1440×900, and 1366×768 without clipping the Shop, Bench, Board, or HUD
 - scoped suppression of native image/context interactions on draggable game pieces while retaining tap, long press, drag, and desktop right-click
