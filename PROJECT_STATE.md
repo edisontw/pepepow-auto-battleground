@@ -146,12 +146,14 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - No confirmed v0.5 release blocker.
 - Device-specific follow-up: repeat the long-press smoke test on physical iPhone Safari when convenient; implementation now prevents default native actions only on interactive unit pieces and preserves normal browser behavior elsewhere.
 
-## 15. v0.6 working branch (not yet deployed)
+## 15. v0.6 source on main (not yet deployed)
 
 - Opening player units are randomized from distinct 1-cost units using the expedition seed instead of always starting with Tunnel Guard + Pickaxe Scout.
 - Board now shows compact live synergy-progress totems sourced from the existing authoritative synergy rows.
 - Mobile HUD restores visible XP, emphasizes level and Gold, shrinks the Shop/status footprint, and removes remaining mobile piece bases including Bench bases.
 - Desktop Shop and Bench chrome are reduced to return more vertical space to the Board.
+- GitHub `main` uses standard Next.js for default `dev`, `build`, `start`, and lint so external editors such as Google AI Studio can import and run it. ChatGPT Sites-specific vinext/Vite commands remain available as `dev:sites`, `build:sites`, `start:sites`, and `lint:sites`.
+- Standard Node 22 validation passed `npm ci`, lint, `next build`, and an HTTP dev-server smoke test after excluding Sites-only `worker/`, `db/`, `build/`, `vite.config.ts`, and `drizzle.config.ts` from the ordinary Next TypeScript project.
 
 ## 16. Next-task protocol
 
