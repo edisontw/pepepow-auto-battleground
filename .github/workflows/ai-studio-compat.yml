@@ -18,3 +18,19 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - name: Smoke test dev server
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev >/tmp/dev.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:3000/ >/tmp/home.html; then
+              test -s /tmp/home.html
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/dev.log
+          exit 1
