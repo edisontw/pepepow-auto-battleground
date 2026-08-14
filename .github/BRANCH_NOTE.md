@@ -1,0 +1,1 @@
+Temporary branch note: source patch applied successfully. Project-specific build validation should use the Sites build environment; standalone tsc lacks Cloudflare ambient types in generic GitHub Actions. Remove before merge if desired.
