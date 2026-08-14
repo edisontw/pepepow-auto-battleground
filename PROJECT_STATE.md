@@ -152,10 +152,10 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 
 ## 14. Known issues
 
-- No confirmed v0.5 release blocker.
+- No confirmed v0.6 release blocker.
 - Device-specific follow-up: repeat the long-press smoke test on physical iPhone Safari when convenient; implementation now prevents default native actions only on interactive unit pieces and preserves normal browser behavior elsewhere.
 
-## 15. v0.6 source on main (not yet deployed)
+## 15. v0.6 deployed release
 
 - Opening player units are randomized from distinct 1-cost units using the expedition seed instead of always starting with Tunnel Guard + Pickaxe Scout.
 - Board now shows compact live synergy-progress totems sourced from the existing authoritative synergy rows.
