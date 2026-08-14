@@ -1,0 +1,24 @@
+name: One-time branch build validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/branch-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v06-ui-totems-mobile-layout
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.0'
+      - run: npm ci
+      - run: npm run build
+      - run: node --import tsx --test tests/ui-contract.test.ts tests/game-rules.test.ts
