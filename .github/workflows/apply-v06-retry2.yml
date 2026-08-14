@@ -1,0 +1,47 @@
+name: Retry v0.6 branch patch extraction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-v06-retry2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v06-ui-totems-mobile-layout
+
+      - name: Apply targeted patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64, urllib.request
+          url='https://raw.githubusercontent.com/edisontw/pepepow-auto-battleground/main/.github/workflows/apply-v06-branch.yml'
+          text=urllib.request.urlopen(url).read().decode()
+          line=next((line.strip() for line in text.splitlines() if line.strip().startswith("echo '") and "| base64 -d" in line), None)
+          if not line:
+              raise SystemExit('patch payload line not found')
+          payload=line[len("echo '"):].split("' | base64 -d",1)[0]
+          if not payload:
+              raise SystemExit('patch payload empty')
+          open('/tmp/patch.py','wb').write(base64.b64decode(payload))
+          PY
+          python /tmp/patch.py
+          git diff --check -- app/game.tsx app/layout.tsx app/v06-overrides.css
+
+      - name: Commit branch changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/game.tsx app/layout.tsx app/v06-overrides.css PROJECT_STATE.md
+          git commit -m 'Add synergy totems and compact responsive layout'
+          git push origin HEAD:v06-ui-totems-mobile-layout
