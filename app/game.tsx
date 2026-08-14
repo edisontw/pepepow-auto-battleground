@@ -598,14 +598,17 @@ export default function Game() {
   };
 
   const startNew = () => {
-    const starters: OwnedUnit[] = [
-      { uid: uid(), unitId: "tunnel-guard", star: 1, position: 34, itemIds: [] },
-      { uid: uid(), unitId: "pickaxe-scout", star: 1, position: 37, itemIds: [] },
-    ];
     const nextSeed = crypto.getRandomValues(new Uint32Array(1))[0] || 1;
+    const starterRandom = createSeededRandom(mixSeed(nextSeed, 0x57a7));
+    const starterPool = UNITS.filter((unit) => unit.cost === 1);
+    const starters: OwnedUnit[] = [34, 37].map((position) => {
+      const pickIndex = starterRandom.int(starterPool.length);
+      const [def] = starterPool.splice(pickIndex, 1);
+      return { uid: uid(), unitId: (def ?? UNITS[0]).id, star: 1 as const, position, itemIds: [] };
+    });
     const restarting = active;
     advanceRoundRef.current = null;
-    setSessionSeed(nextSeed); setRound(1); setGold(10); setHealth(100); setLevel(2); setXp(0); setUnits(starters); setItems([]); setAis(createAICommanders(difficulty, createSeededRandom(mixSeed(nextSeed, 0xa11)))); setShop(rollShop(2)); setLocked(false); setSelectedUid(null); setSelectedItem(null); setInspectedUnit(null); setInspectedCombat(null); setStreak(0); setTimer(GAME_RULES.planningSeconds); setStats(newStats()); setPhase("planning"); setActive(true); setHasSave(true); setNotice("Your first neutral encounter is ahead. Both sides field two units."); tone(520, .16, "triangle"); unlockMusic();
+    setSessionSeed(nextSeed); setRound(1); setGold(10); setHealth(100); setLevel(2); setXp(0); setUnits(starters); setItems([]); setAis(createAICommanders(difficulty, createSeededRandom(mixSeed(nextSeed, 0xa11)))); setShop(rollShop(2)); setLocked(false); setSelectedUid(null); setSelectedItem(null); setInspectedUnit(null); setInspectedCombat(null); setStreak(0); setTimer(GAME_RULES.planningSeconds); setStats(newStats()); setPhase("planning"); setActive(true); setHasSave(true); setNotice("Opening crew randomized. Your first neutral encounter is ahead."); tone(520, .16, "triangle"); unlockMusic();
     sessionStartedAt.current = Date.now();
     trackAnonymous(restarting ? "restart" : "start", { seed: nextSeed, fps: performance.measuredFps, quality: performance.quality });
   };
@@ -680,6 +683,7 @@ export default function Game() {
           <div className={`phase-banner ${phase} ${revealingEnemy ? "reveal" : ""}`}><span>{phase === "planning" ? "FORMATION PHASE" : revealingEnemy ? "SCOUTING ENEMY FORMATION" : phase === "battle" ? "AUTO COMBAT" : phase === "result" ? (combatResult?.winner === "player" ? "VICTORY" : combatResult?.winner === "draw" ? "DRAW" : "DEFEAT") : "EXPEDITION OVER"}</span>{boardNotFull && <strong className={`board-cap-warning ${bench.length ? "actionable" : ""}`}>BOARD NOT FULL — {deployed.length} / {level}</strong>}{phase === "planning" && <b>{timer}s</b>}{revealingEnemy && <b>1.8s</b>}</div>
           <div className={`battle-board ${phase === "battle" ? "in-combat" : ""}`}>
             <div className="enemy-nameplate"><span>{phase === "battle" ? (pve ? (isBoss ? "VOID FOREMAN" : "NEUTRAL CREW") : opponent?.name) : "ENEMY TERRITORY"}</span><i /></div>
+            <SynergyTotems rows={synergyRows} />
             {Array.from({ length: BOARD_COLS * BOARD_ROWS }, (_, position) => {
               const unit = boardMap.get(position);
               const combat = displayedUnits?.find((entry) => entry.uid === unit?.uid);
@@ -756,6 +760,19 @@ function SynergyList({ rows, compact = false, onOpenArchive }: { rows: SynergyRo
       <strong>{row.tier ? `T${row.tier}` : row.count}</strong>
     </button>) : <p className="empty-copy">Deploy units to activate crew bonuses.</p>}
   </div>;
+}
+
+function SynergyTotems({ rows }: { rows: SynergyRow[] }) {
+  const visible = rows.filter((row) => row.count > 0).slice(0, 5);
+  if (!visible.length) return null;
+  return <div className="synergy-totems" aria-label="Formation synergy progress">{visible.map((row) => {
+    const goal = row.nextThreshold ?? row.threshold;
+    return <div className={`synergy-totem tier-${row.tier}`} key={row.trait} title={`${row.trait}: ${row.count}/${goal}${row.tier ? ` · ${row.value}` : ""}`}>
+      <span className="synergy-sigil">{row.trait.slice(0, 1)}</span>
+      <b>{row.count}/{goal}</b>
+      <i><em style={{ width: `${Math.min(100, row.count / Math.max(1, goal) * 100)}%` }} /></i>
+    </div>;
+  })}</div>;
 }
 
 function MobileStatusDock({ panel, onPanel, rows, items, selectedItem, onSelectItem, onOpenTraitArchive, onOpenItemArchive }: { panel: MobilePanel; onPanel: (panel: MobilePanel) => void; rows: SynergyRow[]; items: string[]; selectedItem: string | null; onSelectItem: (id: string) => void; onOpenTraitArchive: () => void; onOpenItemArchive: () => void }) {
