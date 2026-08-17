@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chooseCombatTarget, CombatUnit, findPathStep, OwnedUnit, simulateBattle } from "../app/battle-engine";
+import { buildCombatSnapshot, chooseCombatTarget, CombatUnit, findPathStep, OwnedUnit, simulateBattle } from "../app/battle-engine";
 
 function combat(uid: string, unitId: string, team: "player" | "enemy", position: number, hp = 500): CombatUnit {
-  return { uid, unitId, team, star: 1, position, spawnPosition: position, previousPosition: null, hp, maxHp: hp, mana: 0, attack: 50, armor: 10, range: unitId === "pickaxe-scout" ? 3 : 1, itemIds: [], dead: false, action: "idle", shield: 0, stunned: 0, targetUid: null, forcedTargetUid: null, forcedTargetTicks: 0 };
+  return { uid, unitId, team, star: 1, position, spawnPosition: position, previousPosition: null, hp, maxHp: hp, mana: 0, attack: 50, armor: 10, range: unitId === "pickaxe-scout" ? 3 : 1, skillPower: 1, itemIds: [], dead: false, action: "idle", shield: 0, stunned: 0, targetUid: null, forcedTargetUid: null, forcedTargetTicks: 0 };
 }
 
 test("normal targeting chooses nearest reachable and only uses HP as a tie break", () => {
@@ -23,6 +23,13 @@ test("assassin first acquisition prioritizes enemy backline and remains sticky",
   assert.equal(chooseCombatTarget(assassin, [front, back], [assassin, front, back])?.uid, back.uid);
 });
 
+test("assassin opening target prefers a Ranger within the same enemy backline", () => {
+  const assassin = combat("p", "cave-stalker", "player", 40);
+  const support = combat("e-support", "glow-medic", "enemy", 0, 1);
+  const ranger = combat("e-ranger", "pickaxe-scout", "enemy", 7, 500);
+  assert.equal(chooseCombatTarget(assassin, [support, ranger], [assassin, support, ranger])?.uid, ranger.uid);
+});
+
 test("forced target overrides an existing sticky target", () => {
   const attacker = combat("p", "pickaxe-scout", "player", 40);
   const sticky = combat("e-sticky", "tunnel-guard", "enemy", 32);
@@ -39,6 +46,30 @@ test("BFS detours around occupied direct cells and never returns a fake move", (
   assert.notEqual(step, null);
   assert.notEqual(step, 40);
   assert.equal(step, 41);
+});
+
+test("four Arcanists receive tier-two starting mana and skill power", () => {
+  const army: OwnedUnit[] = [
+    { uid: "a", unitId: "glow-medic", star: 1, position: 40, itemIds: [] },
+    { uid: "b", unitId: "volt-hacker", star: 1, position: 41, itemIds: [] },
+    { uid: "c", unitId: "circuit-sage", star: 1, position: 42, itemIds: [] },
+    { uid: "d", unitId: "wild-seer", star: 1, position: 43, itemIds: [] },
+  ];
+  const snapshot = buildCombatSnapshot(army, "player");
+  for (const unit of snapshot) {
+    assert.equal(unit.mana, 45);
+    assert.equal(unit.skillPower, 1.3);
+  }
+});
+
+test("three Wild units can now activate the reachable tier-two health bonus", () => {
+  const army: OwnedUnit[] = [
+    { uid: "a", unitId: "wild-burrower", star: 1, position: 40, itemIds: [] },
+    { uid: "b", unitId: "moss-brute", star: 1, position: 41, itemIds: [] },
+    { uid: "c", unitId: "wild-seer", star: 1, position: 42, itemIds: [] },
+  ];
+  const seer = buildCombatSnapshot(army, "player").find((unit) => unit.unitId === "wild-seer");
+  assert.equal(seer?.maxHp, Math.round(720 * 1.32));
 });
 
 test("identical inputs and seed reproduce the complete battle result", () => {
