@@ -104,10 +104,12 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - Shop, Unit Info, Battle Archive, and identification views retain unit names; battlefield pieces remain art-forward with no name/pedestal.
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
-- `app/v06-overrides.css` is the final targeted override layer after `globals.css`.
+- `app/v06-overrides.css` contains the v0.6/post-v0.6 responsive layer; `app/v07-overrides.css` is loaded after it for the latest targeted v0.7 fixes.
 - Current post-v0.6 fixes on main: horizontal low-height desktop Shop cards, larger key HUD/Shop/status text, and corrected mobile Board/Bench separation.
 - v0.7 candidate hides the Board-corner synergy totems on desktop. On mobile, the same compact progress indicators are positioned above the Board boundary so they no longer cover playable cells.
 - v0.7 candidate refreshes the WebP portraits for Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, and Storm Hacker in `public/units/`.
+- v0.7 candidate removes the decorative `star-evolution` glow/frame for both 2★ and 3★ units while keeping the normal `★★ / ★★★` star label, preventing upgraded-unit effects from obscuring portraits on phones.
+- Mobile Shop now uses five equal shrinkable columns instead of fixed 78px cards, so all five Shop choices fit simultaneously at the 360/375/390px target widths without horizontal scrolling.
 
 ## 9. Planning AI
 
@@ -132,6 +134,7 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - App/game UI, input, Board/Bench/Sell, Unit Info, archive, audio: `app/game.tsx`
 - Base responsive layout and unit visuals: `app/globals.css`
 - v0.6/post-v0.6 targeted responsive overrides: `app/v06-overrides.css`
+- Latest v0.7 targeted presentation overrides: `app/v07-overrides.css`
 - Deterministic combat and combat snapshots: `app/battle-engine.ts`
 - Units, items, traits, and `TRAIT_DETAILS`: `app/game-data.ts`
 - Economy, progression, Shop odds, and game rules: `app/game-rules.ts`
@@ -145,6 +148,7 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - v0.6 standard Node 22 validation passed before its deployment.
 - v0.7 combat tests in source cover Assassin Ranger-target preference, Arcanist tier-two starting Mana/skill power, reachable Wild tier two, deterministic battle reproduction, BFS, sticky/forced targeting, and empty-side resolution.
 - This targeted GitHub review confirmed the authoritative v0.7 trait/combat code and corrected the stale Hard-AI Wild `>=4` second-tier heuristic to `>=3`.
+- The latest 2★/3★ visibility and five-card mobile Shop fixes are CSS-only; source-level rules are committed, but rendered viewport verification remains pending.
 - Full `npm test`, broad battle simulation, and rendered viewport verification have not been executed from the GitHub connector environment; run them before declaring v0.7 deployed.
 
 ## 13. Known issues / next validation
@@ -153,8 +157,8 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - Run full build/tests before deployment because combat simulation changed.
 - Run deterministic combat regression/stress proportional to the simulation change.
 - Recheck desktop 1440×900 / 1366×768 and mobile 390×844 / 375×812 / 360×800 after deployment.
+- Specifically verify that 2★/3★ portraits remain unobscured and all five Shop cards are visible simultaneously on 390/375/360px mobile widths.
 - Repeat physical iPhone Safari long-press smoke when convenient.
-- The latest request ended with the incomplete phrase `移掉二星棋子的…`; no 2★ presentation/gameplay change was made. Resolve the missing wording before editing that behavior.
 
 ## 14. Next-task protocol
 
