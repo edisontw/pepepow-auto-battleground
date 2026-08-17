@@ -62,3 +62,22 @@ test("difficulty changes evaluation while preserving identical resources and rul
   }
   assert.ok(signatures.size >= 2, "difficulty should affect candidate evaluation or positioning");
 });
+
+test("Hard AI converts the same legal economy into stronger active-synergy planning", () => {
+  const totalSynergy = (difficulty: "Normal" | "Hard") => {
+    let total = 0;
+    for (let seed = 1; seed <= 30; seed += 1) {
+      let ais = createAICommanders(difficulty, createSeededRandom(mixSeed(seed, 101)));
+      for (let round = 2; round <= 14; round += 1) {
+        ais = ais.map((ai, index) => planAI(ai, round, createSeededRandom(mixSeed(seed, round, index, 202))));
+        for (const ai of ais) assert.equal(assertAILegal(ai), true);
+      }
+      total += ais.reduce((sum, ai) => sum + ai.behavior.synergyScore, 0);
+    }
+    return total;
+  };
+
+  const normal = totalSynergy("Normal");
+  const hard = totalSynergy("Hard");
+  assert.ok(hard > normal * 1.05, `Hard synergy planning should materially outperform Normal (${hard} vs ${normal})`);
+});
