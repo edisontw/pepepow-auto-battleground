@@ -37,6 +37,7 @@
 .synergy-totem.tier-2 { --totem:#d2ae42; }.synergy-totem.tier-2 .synergy-sigil { border-radius:32% 32% 42% 42%; color:#fff0a0; }
 
 @media (min-width:901px) {
+  .synergy-totems { display:none; }
   .game-shell { --shop-h:116px; }
   .arena-panel { grid-template-rows:26px minmax(0,1fr) 46px 23px; }
   .bench-wrap { height:46px; }
@@ -103,7 +104,8 @@
   .bench .unit-token.compact .unit-art { left:-4%; top:-7%; width:108%; height:108%; }
   .bench .unit-token.compact .unit-aura { bottom:0; opacity:.12; }
 
-  .synergy-totems { top:18px; right:4px; gap:3px; }
+  /* v0.7: render the totems above the Board boundary, not over playable cells. */
+  .synergy-totems { top:-24px; right:4px; gap:3px; }
   .synergy-totem { width:31px; grid-template-rows:22px 9px 2px; }
   .synergy-sigil { width:22px; height:22px; border-width:1px; font-size:9px; }
   .synergy-totem b { font-size:7px; }.synergy-totem>i { width:23px; height:2px; }
