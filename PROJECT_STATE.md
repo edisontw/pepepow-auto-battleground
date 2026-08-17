@@ -5,7 +5,7 @@
 **Last updated:** 2026-08-17  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
 **Current deployed version:** v0.6  
-**GitHub main:** contains post-v0.6 fixes not yet verified as deployed
+**GitHub main:** v0.7 candidate; contains post-v0.6 UI/AI fixes plus combat-balance changes not yet verified as deployed
 
 ## 1. Product direction
 
@@ -17,16 +17,7 @@
 
 ## 2. Current release state
 
-v0.6 is the active deployed release. It preserves v0.5 gameplay and adds:
-
-- synergy totems on the Board
-- randomized opening units
-- a compact mobile Shop
-- mobile XP display, larger Level, and clearer Gold
-- removal of mobile unit bases
-- a smaller desktop Shop and Bench with a larger Board
-
-The v0.5 responsive, input, archive, and battlefield presentation improvements remain active.
+v0.6 is the active deployed release. GitHub `main` is now a v0.7 candidate containing the later responsive/AI fixes and the combat-balance pass documented below. Do not describe v0.7 as deployed until Sites deployment is completed and verified.
 
 ## 3. Architecture invariants
 
@@ -36,6 +27,7 @@ The v0.5 responsive, input, archive, and battlefield presentation improvements r
 - Frame rate must not affect results.
 - Identical starting state plus deterministic seed must reproduce the same battle.
 - UI values for buffs, synergies, odds, XP, and other gameplay rules must come from authoritative gameplay/config modules, not duplicate UI tables.
+- Units may now carry more than two traits. `traits[0]` remains the primary faction and `traits[1]` remains the primary combat role/class; additional traits are additive synergies.
 
 ### Input and drop resolution
 
@@ -48,25 +40,49 @@ The v0.5 responsive, input, archive, and battlefield presentation improvements r
 - Invalid drops cancel and return the unit to its origin; they never imply a sale.
 - Board → Bench moves the unit and never sells it.
 
-Preferred drop resolution:
-
-1. valid Board destination
-2. valid Bench destination
-3. explicit Sell Zone
-4. otherwise return to origin
+Preferred drop resolution: valid Board → valid Bench → explicit Sell Zone → return to origin.
 
 ## 4. Combat and targeting
 
-- Default targeting uses the nearest valid/reachable enemy.
-- Target stickiness prevents unnecessary retargeting.
-- BFS handles blocked paths.
+- Default targeting uses the nearest valid/reachable enemy with sticky targets and BFS pathing.
 - Guardian Taunt can override normal targeting.
-- Assassin may prioritize the enemy backline at battle start.
+- Assassin first acquisition prioritizes the enemy backline; within the same backline depth it prioritizes Rangers.
+- Active Assassin 2/3 adds +25% / +45% damage against Rangers on both basic attacks and skills. Existing 25% / 42% critical chance at 175% damage remains.
+- Combat engine/replay version for this pass: `combat-balance-0.7.0`, replay v4.
 - Historical Battle Archive inspection must not modify deterministic combat or replay behavior.
 
-Regression risks: target flicker, living-unit overlap, corpse obstruction, stuck movement, duplicate animation damage, and frame-rate-dependent results.
+Regression risks: target flicker, living-unit overlap, corpse obstruction, stuck movement, duplicate animation damage, frame-rate-dependent results, and old replay display compatibility.
 
-## 5. Progression, Shop, and economy
+## 5. v0.7 combat balance
+
+### Arcanist magic archetype
+
+- New additive class trait: `Arcanist`, thresholds 2/4.
+- Arcanist 2: Arcanists start with +25 Mana and their skills are 15% stronger.
+- Arcanist 4: Arcanists start with +45 Mana and their skills are 30% stronger.
+- Skill-power amplification applies to damaging skills and healing skills; the generic combat field is `CombatUnit.skillPower`.
+- Current Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
+- Null Sovereign and Aurora Titan intentionally do not receive Arcanist, avoiding a direct buff to the previously dominant Ranger/Void legendary core.
+
+### Wild
+
+- Wild had only three unique units while tier 2 required four, making the second tier unreachable.
+- Wild thresholds are now 2/3.
+- Wild 2/3 grants all allies +15% / +32% maximum Health.
+
+### Support
+
+- Support thresholds remain 2/3.
+- Support healing amplification is now +40% / +80% (previously +35% / +70%).
+- Arcanist Support units can additionally benefit from Arcanist skill power, creating a deliberate sustain/magic composition.
+
+### Assassin vs Ranger
+
+- Assassin remains a backline role but now explicitly hunts Rangers within the same backline depth.
+- Assassin 2/3 deals +25% / +45% damage to Rangers in addition to its existing critical mechanic.
+- This is a universal combat rule for player and AI, not an AI-only bonus.
+
+## 6. Progression, Shop, and economy
 
 - Passive XP curve: `min(8, 1 + floor((round - 1) / 2))`.
 - Shop tier-odds display and Shop roll logic share the same authoritative table.
@@ -76,61 +92,40 @@ Regression risks: target flicker, living-unit overlap, corpse obstruction, stuck
 
 Authoritative values live in code; do not copy or invent economy numbers in this file.
 
-## 6. Unit presentation
-
-- Shop, Unit Info, Battle Archive, and other identification views retain unit names.
-- Battlefield units are art-forward chess pieces: names are removed and pedestal/base visuals are removed.
-- Battlefield HP bars are deliberately stronger and easier to scan; Mana remains readable.
-- 1★ / 2★ / 3★ differentiation and selection state remain clear.
-- Compact Bench presentation may retain its own label/base treatment on desktop; mobile bases remain removed.
-- Do not introduce heavyweight true 3D rendering.
-
 ## 7. Buffs, synergies, and equipment
 
 - Display numerical gameplay values whenever the underlying effect has one.
 - Current Faction/Class/Trait rows show count, active tier/threshold, and actual active value.
 - Values are derived from `TRAIT_DETAILS` and combat snapshots; do not maintain a second UI-only value table.
+- Trait counting uses every trait on a unit, including additive third traits such as Arcanist.
 - Mobile exposes Synergies and Equipment through compact expandable controls that do not permanently consume Board space.
-- Unit Info uses the same practical stat/buff/equipment presentation for live and historical units.
 
-## 8. Planning warning
+## 8. Unit presentation / responsive layout
 
-- During Planning, show `BOARD NOT FULL — current / cap` whenever deployed count is below the current limit.
-- It is static, non-spamming, does not auto-deploy, and disappears immediately when the Board is full.
+- Shop, Unit Info, Battle Archive, and identification views retain unit names; battlefield pieces remain art-forward with no name/pedestal.
+- Desktop targets: 1920×1080, 1440×900, 1366×768.
+- Mobile targets: 390×844, 375×812, 360×800, 412×915.
+- `app/v06-overrides.css` is the final targeted override layer after `globals.css`.
+- Current post-v0.6 fixes on main: horizontal low-height desktop Shop cards, larger key HUD/Shop/status text, and corrected mobile Board/Bench separation.
 
-## 9. Battle statistics and Archive
+## 9. Planning AI
 
-- Rankings use Top 5 and cover Damage Dealt, Healing Done, and Damage Taken.
-- Battle Archive retains deterministic verification and round history.
-- Each record exposes the enemy lineup.
-- Historical enemy inspection uses recorded combat state/stats and reuses Unit Info presentation.
-
-## 10. Responsive layout
-
-- Desktop targets: 1920×1080, 1440×900, and 1366×768.
-- Board sizing is height-aware; low-height desktops compact secondary chrome before shrinking the Board excessively.
-- Mobile portrait targets: 390×844, 375×812, 360×800, and 412×915.
-- The mobile status dock provides expandable Synergies and Equipment.
-- `app/v06-overrides.css` is the final targeted override layer after `globals.css`; when fixing responsive regressions, check inherited earlier media rules before adding more conflicting rules.
-- Do not reintroduce battlefield names or pedestals to solve spacing.
-
-## 11. Planning AI
-
-- Personalities still vary economy, rerolls, leveling, focus, and upgrade priorities.
+- Personalities vary economy, rerolls, leveling, focus, and upgrade priorities.
 - Easy primarily uses raw unit power and intentionally noisy evaluation.
 - Normal uses composition-aware greedy Board selection.
 - Hard uses low-noise candidate evaluation plus exhaustive legal Board-combination scoring, actual trait-threshold progress, focus/role pairings, front-line/damage coverage, and stronger leveling/reroll decisions.
-- Hard gives strategic preference to Assassin counter-pressure and to Wild/Support sustain when they improve a legal composition; this is planning preference, not a hidden combat bonus.
-- Hard Assassin formation favors edge-forward deployment to reach protected backlines sooner.
-- AI must use the same Gold, XP, Shop odds, Bench cap, unit stats, and combat rules as the player. Do not grant hidden items/resources or inspect information the player could not know.
+- Because AI synergy evaluation iterates authoritative unit traits/`TRAIT_DETAILS`, Arcanist and the new Wild threshold are automatically considered without hidden bonuses.
+- Hard additionally values Assassin counter-pressure and Wild/Support sustain when they improve a legal composition.
+- AI uses the same Gold, XP, Shop odds, Bench cap, unit stats, traits, and combat rules as the player.
 
-## 12. Audio
+## 10. Battle statistics / Archive / audio
 
-- Planning and Combat use phase-appropriate music.
-- Music preference is persisted.
-- Audio files: `public/audio/planning.mp3`, `public/audio/combat.mp3`.
+- Rankings use Top 5 for Damage Dealt, Healing Done, and Damage Taken.
+- Battle Archive retains deterministic verification, enemy lineup, and historical inspection.
+- Planning and Combat use phase-appropriate music; preference is persisted.
+- Audio: `public/audio/planning.mp3`, `public/audio/combat.mp3`.
 
-## 13. Authoritative modules
+## 11. Authoritative modules
 
 - App/game UI, input, Board/Bench/Sell, Unit Info, archive, audio: `app/game.tsx`
 - Base responsive layout and unit visuals: `app/globals.css`
@@ -139,37 +134,31 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - Units, items, traits, and `TRAIT_DETAILS`: `app/game-data.ts`
 - Economy, progression, Shop odds, and game rules: `app/game-rules.ts`
 - Planning AI: `app/ai-engine.ts`
+- Combat regressions: `tests/battle-engine.test.ts`
 - AI regressions: `tests/ai-engine.test.ts`
 - Targeted UI contract tests: `tests/ui-contract.test.ts`
-- Board/Bench/Sell and rule regressions: `tests/game-rules.test.ts`
 
-## 14. Validation baseline
+## 12. Validation state
 
-- v0.5 production checkpoint build and targeted UI/game-rule tests passed, with screenshots at the documented desktop/mobile target sizes.
-- v0.6 standard Node 22 validation passed `npm ci`, lint, `next build`, and HTTP dev-server smoke before deployment.
-- Post-v0.6 AI extraction/simulation check: Hard produced materially higher cumulative synergy planning than Normal across sampled seeds while keeping legal Gold/Board/Bench state; regression coverage now encodes this expectation.
-- Post-v0.6 UI fixes still require rendered target-viewport verification after deployment; do not mark them visually verified from CSS inspection alone.
+- v0.6 standard Node 22 validation passed before its deployment.
+- Post-v0.6 Hard-AI multi-seed regression requires Hard to materially outperform Normal in cumulative synergy planning while remaining legal.
+- v0.7 combat tests now cover Assassin Ranger-target preference, Arcanist tier-two starting Mana/skill power, reachable Wild tier two, deterministic battle reproduction, BFS, sticky/forced targeting, and empty-side resolution.
+- Full `npm test` / rendered viewport verification has not been executed from the GitHub connector environment; run it before declaring v0.7 deployed.
 
-## 15. Known issues / balance backlog
+## 13. Known issues / next validation
 
-- GitHub `main` post-v0.6 UI and AI changes have not yet been verified on the deployed Sites build.
+- GitHub `main` v0.7 candidate has not yet been deployed to ChatGPT Sites.
+- Run full build/tests before deployment because combat simulation changed.
+- Run deterministic combat regression/stress proportional to the simulation change; unlike the prior UI-only work, a combat-engine change justifies broader battle simulation coverage.
+- Recheck 1440×900, 1366×768 and mobile 390×844 / 375×812 / 360×800 after deployment because the earlier responsive changes are still awaiting rendered verification.
 - Repeat physical iPhone Safari long-press smoke when convenient.
-- Balance direction for a later combat pass: add a magic-oriented archetype; make Assassin a clearer Ranger counter; improve Wild and Support viability. Do not silently implement these as hidden AI-only advantages.
 
-## 16. Post-v0.6 changes currently on GitHub main
-
-- Windows/low-height desktop Shop cards are horizontal instead of squeezing character art into a short stacked image row; unit image uses contained bottom alignment and text sizing is increased.
-- Key desktop/mobile HUD, Shop, synergy, status-dock, and action text/numbers are enlarged from the overly compressed v0.6 values.
-- Mobile Board resets the inherited tall portrait aspect ratio and explicitly reserves separate Board, Bench, and notice rows so the sixth Board row cannot extend underneath the Bench.
-- Hard AI now evaluates real synergy thresholds and legal whole-Board compositions, levels/rerolls more purposefully, and adds Assassin/Wild/Support role pressure while preserving fair resources.
-- `tests/ai-engine.test.ts` includes a multi-seed Hard-vs-Normal synergy-planning regression plus legality checks.
-
-## 17. Next-task protocol
+## 14. Next-task protocol
 
 1. Read this file first.
-2. Reproduce only the reported/current issue; inspect directly relevant modules and immediate dependencies.
+2. Inspect only directly relevant modules and immediate dependencies.
 3. Preserve deterministic combat and input/drop invariants.
-4. Keep testing proportional; do not rerun the 1,000-seed stress suite unless simulation behavior changes.
+4. For combat-engine changes, run deterministic/regression/stress coverage before release.
 5. Verify visual changes with rendered screenshots, not DOM dimensions alone.
 6. Publish through the existing Sites project when deployment is requested and verify deployment status.
 7. Update this same file concisely after meaningful changes.
