@@ -160,7 +160,7 @@ function compositionValue(ai: AICommander, units: OwnedUnit[]) {
     const wild = counts.get("Wild") ?? 0;
     const support = counts.get("Support") ?? 0;
     if (assassin >= 2) score += 18 + (assassin >= 3 ? 16 : 0);
-    if (wild >= 2) score += 10 + (wild >= 4 ? 12 : 0);
+    if (wild >= 2) score += 10 + (wild >= 3 ? 12 : 0);
     if (support >= 2) score += 9 + (support >= 3 ? 10 : 0);
   }
   return score;
