@@ -4,6 +4,7 @@ import test from "node:test";
 
 const game = readFileSync(new URL("../app/game.tsx", import.meta.url), "utf8");
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+const v06 = readFileSync(new URL("../app/v06-overrides.css", import.meta.url), "utf8");
 
 test("mobile gameplay exposes compact equipment and synergy panels", () => {
   assert.match(game, /function MobileStatusDock/);
@@ -24,6 +25,25 @@ test("low-height desktop shop stretches inside its actual grid track", () => {
   assert.match(css, /grid-template-rows:minmax\(0,1fr\)/);
   assert.match(css, /@media \(max-height:820px\)[\s\S]*?\.shop-card \{ height:auto;/);
   assert.doesNotMatch(css, /@media \(max-height:820px\)[\s\S]*?\.shop-card \{ height:96px;/);
+});
+
+test("post-v0.6 desktop Shop preserves full unit art in a horizontal card", () => {
+  assert.match(v06, /@media \(min-width:901px\)[\s\S]*?\.shop-card \{[^}]*grid-template-columns:46px minmax\(0,1fr\)/);
+  assert.match(v06, /\.shop-art img \{[^}]*object-fit:contain;[^}]*object-position:center bottom/);
+  assert.match(v06, /@media \(max-height:820px\)[\s\S]*?\.shop-card \{ grid-template-columns:42px minmax\(0,1fr\)/);
+});
+
+test("post-v0.6 mobile Board reserves a separate Bench row", () => {
+  assert.match(v06, /@media \(max-width:900px\)[\s\S]*?\.arena-panel \{ grid-template-rows:22px auto 42px 23px/);
+  assert.match(v06, /\.bench-wrap \{ height:42px; position:relative; z-index:3; \}/);
+  assert.match(v06, /\.battle-board \{[^}]*aspect-ratio:8\/7\.2;[^}]*z-index:1/);
+  assert.match(v06, /@media \(max-width:600px\)[\s\S]*?\.battle-board \{ aspect-ratio:8\/7; \}/);
+});
+
+test("post-v0.6 mobile HUD keeps primary numbers readable", () => {
+  assert.match(v06, /\.resource-row \.gold b \{[^}]*font-size:14px/);
+  assert.match(v06, /\.resource-row \.level b \{[^}]*font-size:19px/);
+  assert.match(v06, /\.round-label strong \{ font-size:19px/);
 });
 
 test("defeat uses a non-control emblem rather than a close X", () => {
