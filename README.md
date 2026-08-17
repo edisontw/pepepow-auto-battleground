@@ -1,108 +1,68 @@
-# vinext-starter
+# PEPEPOW Auto Battleground
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Browser-based auto battler built with Next.js-compatible app code and the ChatGPT Sites / vinext deployment workflow.
 
-## Prerequisites
+- Repository source of truth: GitHub `main`
+- Current source status: **v0.7 candidate**
+- Deployed Sites release: **v0.6** until the candidate is explicitly deployed
+- Site: `https://pepepow-auto-battleground.edisonhuang.chatgpt.site/`
 
-- Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+## v0.7 candidate gameplay changes
 
-## Sites Lifecycle
+### Arcanist
+Five existing units now carry the additive `Arcanist` trait while retaining their faction and class:
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+- Glow Medic
+- Volt Hacker
+- Circuit Sage
+- Wild Seer
+- Storm Hacker
 
-This starter does not use `wrangler.jsonc`.
+Arcanist thresholds are authoritative in `app/game-data.ts`:
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout and then validates the Sites artifact. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+- 2 Arcanist: +25 starting Mana and +15% skill effect
+- 4 Arcanist: +45 starting Mana and +30% skill effect
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+Null Sovereign and Aurora Titan deliberately do **not** receive Arcanist so the established Ranger + Void + legendary core is not strengthened indirectly.
 
-## Included Shape
+### Counter / sustain balance
 
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+- Assassin opening targeting prefers Rangers among equivalent backline targets.
+- Assassin 2: +25% damage to Rangers.
+- Assassin 3: +45% damage to Rangers.
+- Wild now uses reachable `2 / 3` thresholds: +15% / +32% team HP.
+- Support 2 / 3 healing multipliers are +40% / +80%.
+- Arcanist skill power also amplifies compatible Support spell effects.
 
-## Workspace Auth Headers
+The combat engine version is `combat-balance-0.7.0`; replay format is v4.
 
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
+## v0.7 presentation changes
 
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
+- New WebP portraits are maintained in `public/units/` for the five Arcanist units.
+- Desktop hides the Board-corner synergy totems; synergy values remain available in the HUD/status interfaces.
+- Mobile keeps synergy totems outside the playable Board cells.
+- Existing v0.6 Windows Shop visibility and mobile Board/Bench separation fixes remain in `app/v06-overrides.css`.
 
-Treat the full name as optional and fall back to email when it is absent:
+## Authoritative modules
 
-```tsx
-import { headers } from "next/headers";
+- Main game UI / input / Board / Bench / Shop / guide / archive: `app/game.tsx`
+- Units, items, traits, synergy thresholds and descriptions: `app/game-data.ts`
+- Economy and progression: `app/game-rules.ts`
+- Deterministic combat and replay: `app/battle-engine.ts`
+- Planning AI: `app/ai-engine.ts`
+- Responsive and visual overrides: `app/v06-overrides.css`
+- Regression tests: `tests/`
+- Canonical project context for future work: `PROJECT_STATE.md`
 
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
+## Development / verification
 
-  const displayName = fullName ?? email;
-  // ...
-}
+Use the existing locked project scripts rather than changing dependencies for routine work:
+
+```bash
+npm test
+npm run build
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+For ChatGPT Sites, use the existing `*:sites` / vinext workflow defined by the repository and the Sites project. Standard Next.js compatibility is retained for external environments.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Diagnostic Commands
-
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build and validate the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build, validate, and verify the rendered development-preview metadata
-- `npm run validate:artifact`: recheck an existing artifact's manifest and ESM `default.fetch` export
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-Use build and validation commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
-
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Do not treat an untested GitHub candidate as deployed. Combat changes should receive deterministic regression tests plus appropriate battle simulation before release.
