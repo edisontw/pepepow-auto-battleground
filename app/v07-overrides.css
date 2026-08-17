@@ -1,0 +1,51 @@
+/* v0.7 targeted visibility fixes: keep upgraded units readable and fit all five Shop cards on phones. */
+
+/* 2★ / 3★ remain identifiable through the normal star label; remove the decorative glow frame
+   that can wash out or cover the unit portrait, especially on small mobile board cells. */
+.star-2 .star-evolution,
+.star-3 .star-evolution {
+  display:none !important;
+}
+
+@media (max-width:900px) {
+  /* The previous fixed 78px columns require >400px once gaps are included.
+     Use five equal shrinkable columns so 360/375/390px phones show the full Shop at once. */
+  .shop-cards {
+    width:100%;
+    min-width:0;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:2px;
+    overflow-x:hidden;
+    scroll-snap-type:none;
+  }
+  .shop-card {
+    min-width:0;
+    width:100%;
+  }
+}
+
+@media (max-width:600px) {
+  .shop-card {
+    height:46px;
+    grid-template-rows:29px minmax(0,1fr);
+  }
+  .shop-info {
+    min-width:0;
+    padding:2px;
+  }
+  .shop-card .shop-info>b {
+    font-size:6.5px;
+    line-height:1;
+  }
+  .shop-card>strong {
+    top:2px;
+    right:2px;
+    font-size:6px;
+  }
+  .shop-card>mark {
+    top:2px;
+    left:2px;
+    padding:2px;
+    font-size:5.5px;
+  }
+}
