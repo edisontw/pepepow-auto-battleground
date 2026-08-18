@@ -1,5 +1,5 @@
 import { OwnedUnit, SeededRandom } from "./battle-engine";
-import { AI_PROFILES, Trait, TRAIT_DETAILS, UNIT_MAP, UNITS, XP_TO_LEVEL } from "./game-data";
+import { AI_PROFILES, ITEMS, Trait, TRAIT_DETAILS, UNIT_MAP, UNITS, XP_TO_LEVEL } from "./game-data";
 import { applyXp, effectiveShopOdds, GAME_RULES, incomeFor, passiveXpForRound } from "./game-rules";
 
 export type AIPersonality = "Balanced" | "Tempo" | "Economist" | "Collector" | "Synergy Hunter" | "Adaptive";
@@ -143,8 +143,54 @@ function synergyValue(units: OwnedUnit[]) {
   return Math.round(total);
 }
 
-function unitPower(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * (unit.star === 1 ? 9 : unit.star === 2 ? 28 : 85); }
+function equipmentPower(unit: OwnedUnit) {
+  const def = UNIT_MAP[unit.unitId];
+  const role = def.traits[1];
+  const frontline = frontClasses.has(role);
+  const caster = role === "Support" || role === "Engineer" || role === "Hacker" || def.traits.includes("Arcanist");
+  return unit.itemIds.reduce((sum, id) => {
+    const item = ITEMS.find((entry) => entry.id === id);
+    if (!item) return sum;
+    const attack = (item.attack ?? 0) * def.attack * (damageClasses.has(role) ? 1.2 : .85);
+    const hp = (item.hp ?? 0) / 28 * (frontline ? 1.25 : .8);
+    const armor = (item.armor ?? 0) * .7 * (frontline ? 1.3 : .8);
+    const mana = (item.mana ?? 0) * .3 * (caster ? 1.3 : .7);
+    return sum + attack + hp + armor + mana;
+  }, 0);
+}
+
+function unitPower(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * (unit.star === 1 ? 9 : unit.star === 2 ? 28 : 85) + equipmentPower(unit); }
 function unitRefund(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * starCopies(unit.star); }
+
+function itemFitValue(unit: OwnedUnit, item: (typeof ITEMS)[number]) {
+  const def = UNIT_MAP[unit.unitId];
+  const role = def.traits[1];
+  const frontline = frontClasses.has(role);
+  const damage = damageClasses.has(role);
+  const caster = role === "Support" || role === "Engineer" || role === "Hacker" || def.traits.includes("Arcanist");
+  let score = unitPower(unit) + (unit.position !== null ? 36 : 0) + (unit.star - 1) * 34 - unit.itemIds.length * 10;
+  if (item.attack) score += item.attack * 100 * (damage ? 1.7 : .8);
+  if (item.hp) score += item.hp / 18 * (frontline ? 1.8 : .8);
+  if (item.armor) score += item.armor * (frontline ? 2.2 : .7);
+  if (item.mana) score += item.mana * (caster ? 1.6 : .45);
+  return score;
+}
+
+/* The player earns gear from neutral victories while AI commanders previously had no equipment path at all.
+   Starting after the first neutral cycle, every surviving AI receives the same one-item-per-5-round cadence.
+   Drops are deterministic and equipment placement is a decision-quality feature, not a hidden stat multiplier. */
+function equipNeutralReward(ai: AICommander, completedRound: number) {
+  if (!ai.alive) return ai;
+  const eligible = ai.units.filter((unit) => unit.itemIds.length < 2);
+  if (!eligible.length) return ai;
+  const deployed = eligible.filter((unit) => unit.position !== null);
+  const candidates = deployed.length ? deployed : eligible;
+  const nameSeed = [...ai.name].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const item = ITEMS[(Math.floor(completedRound / 5) + nameSeed) % ITEMS.length];
+  const target = [...candidates].sort((a, b) => itemFitValue(b, item) - itemFitValue(a, item) || (a.uid < b.uid ? -1 : 1))[0];
+  if (!target) return ai;
+  return { ...ai, units: ai.units.map((unit) => unit.uid === target.uid ? { ...unit, itemIds: [...unit.itemIds, item.id] } : unit) };
+}
 
 /* Late-game decisions should be based on the formation that is actually fighting, not every spare
    unit on the Bench. This prevents phantom Bench synergies from pulling Hard AI away from a strong core. */
@@ -489,7 +535,9 @@ export function planAI(ai: AICommander, round: number, random: SeededRandom, rec
 }
 
 export function advanceAICommanders(commanders: AICommander[], round: number, random: SeededRandom) {
-  return commanders.map((ai) => planAI(ai, round, random, true));
+  const completedRound = Math.max(0, round - 1);
+  const neutralReward = completedRound >= 5 && completedRound % 5 === 0;
+  return commanders.map((ai) => planAI(neutralReward ? equipNeutralReward(ai, completedRound) : ai, round, random, true));
 }
 
 export function createAICommanders(difficulty: AIDifficulty, random: SeededRandom): AICommander[] {
