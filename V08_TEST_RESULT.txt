@@ -1,4 +1,0 @@
-PASS
-commit=ce61e724f31183fdc5f988c1a64e130ed6b8d757
-production_build=PASS
-typescript_regressions=PASS
