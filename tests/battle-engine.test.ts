@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCombatSnapshot, chooseCombatTarget, CombatUnit, findPathStep, OwnedUnit, simulateBattle } from "../app/battle-engine";
+import { buildCombatSnapshot, chooseCombatTarget, CombatUnit, ENGINE_VERSION, findPathStep, OwnedUnit, simulateBattle } from "../app/battle-engine";
+import { UNIT_MAP } from "../app/game-data";
 
 function combat(uid: string, unitId: string, team: "player" | "enemy", position: number, hp = 500): CombatUnit {
   return { uid, unitId, team, star: 1, position, spawnPosition: position, previousPosition: null, hp, maxHp: hp, mana: 0, attack: 50, armor: 10, range: unitId === "pickaxe-scout" ? 3 : 1, skillPower: 1, itemIds: [], dead: false, action: "idle", shield: 0, stunned: 0, targetUid: null, forcedTargetUid: null, forcedTargetTicks: 0 };
@@ -70,6 +71,58 @@ test("three Wild units can now activate the reachable tier-two health bonus", ()
   ];
   const seer = buildCombatSnapshot(army, "player").find((unit) => unit.unitId === "wild-seer");
   assert.equal(seer?.maxHp, Math.round(720 * 1.32));
+});
+
+test("v0.8 adds three original Arcanists without adding Ranger or Void to them", () => {
+  assert.equal(ENGINE_VERSION, "combat-balance-0.8.0");
+  for (const id of ["arcane-apprentice", "rune-blaster", "chrono-mage"]) {
+    assert.equal(UNIT_MAP[id].traits.includes("Arcanist"), true);
+    assert.equal(UNIT_MAP[id].traits.includes("Ranger"), false);
+    assert.equal(UNIT_MAP[id].traits.includes("Void"), false);
+  }
+});
+
+test("Arcane Apprentice Mana Ward refunds Arcanist-scaled mana after casting", () => {
+  const player: OwnedUnit[] = [
+    { uid: "apprentice", unitId: "arcane-apprentice", star: 1, position: 40, itemIds: ["data-cell", "data-cell"] },
+    { uid: "volt", unitId: "volt-hacker", star: 1, position: 41, itemIds: [] },
+    { uid: "rune", unitId: "rune-blaster", star: 1, position: 42, itemIds: [] },
+    { uid: "chrono", unitId: "chrono-mage", star: 1, position: 43, itemIds: [] },
+  ];
+  const enemy: OwnedUnit[] = [{ uid: "enemy", unitId: "tunnel-guard", star: 1, position: 24, itemIds: [] }];
+  const result = simulateBattle(player, enemy, 11);
+  const apprentice = result.frames[1].units.find((unit) => unit.uid === "apprentice");
+  assert.equal(apprentice?.mana, 26);
+});
+
+test("Rune Blaster Rune Nova reaches enemies two cells from the locked target", () => {
+  const player: OwnedUnit[] = [
+    { uid: "rune", unitId: "rune-blaster", star: 1, position: 40, itemIds: ["data-cell", "data-cell"] },
+    { uid: "volt", unitId: "volt-hacker", star: 1, position: 41, itemIds: [] },
+    { uid: "storm", unitId: "storm-hacker", star: 1, position: 42, itemIds: [] },
+    { uid: "chrono", unitId: "chrono-mage", star: 1, position: 43, itemIds: [] },
+  ];
+  const enemy: OwnedUnit[] = [
+    { uid: "primary", unitId: "tunnel-guard", star: 1, position: 24, itemIds: [] },
+    { uid: "secondary", unitId: "iron-bulwark", star: 1, position: 26, itemIds: [] },
+  ];
+  const firstTick = simulateBattle(player, enemy, 12).frames[1];
+  assert.equal(firstTick.events.some((entry) => entry.skillId === "rune-blaster" && entry.targetUid === "secondary" && entry.type === "damage"), true);
+});
+
+test("Chrono Mage Time Lock applies a one-tick stun to surviving targets", () => {
+  const player: OwnedUnit[] = [
+    { uid: "chrono", unitId: "chrono-mage", star: 1, position: 40, itemIds: ["data-cell", "data-cell"] },
+    { uid: "volt", unitId: "volt-hacker", star: 1, position: 41, itemIds: [] },
+    { uid: "storm", unitId: "storm-hacker", star: 1, position: 42, itemIds: [] },
+    { uid: "rune", unitId: "rune-blaster", star: 1, position: 43, itemIds: [] },
+  ];
+  const enemy: OwnedUnit[] = [
+    { uid: "primary", unitId: "tunnel-guard", star: 1, position: 24, itemIds: [] },
+    { uid: "secondary", unitId: "iron-bulwark", star: 1, position: 25, itemIds: [] },
+  ];
+  const firstTick = simulateBattle(player, enemy, 13).frames[1];
+  assert.equal(firstTick.events.some((entry) => entry.skillId === "chrono-mage" && entry.type === "stun"), true);
 });
 
 test("identical inputs and seed reproduce the complete battle result", () => {
