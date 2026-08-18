@@ -62,6 +62,16 @@
   box-shadow:0 0 6px rgba(82,235,137,.52);
 }
 
+/* Distinguish teams without changing the green HP convention or obscuring portraits. */
+.battle-board.in-combat .board-cell.enemy { border-color:rgba(255,124,116,.24); }
+.battle-board.in-combat .board-cell.friendly { border-color:rgba(105,231,177,.24); }
+.unit-token.player:not(.compact) .unit-art img { filter:drop-shadow(0 0 4px rgba(80,231,168,.42)); }
+.unit-token.enemy:not(.compact) .unit-art img { filter:drop-shadow(0 0 5px rgba(255,94,92,.50)); }
+.unit-token.player .hp-track { border-color:#052c17; }
+.unit-token.enemy .hp-track { border-color:#43120f; }
+.unit-token.player:not(.compact) .stars { border:1px solid rgba(99,231,170,.26); }
+.unit-token.enemy:not(.compact) .stars { color:#ffb3a8; border:1px solid rgba(255,103,96,.34); background:rgba(50,8,10,.72); text-shadow:0 0 5px rgba(255,84,74,.58); }
+
 /* Stronger ranged/magic readability. The simulation already emits one projectile event per target,
    so area/global skills naturally fan out to multiple victims without adding simulation work. */
 .projectile-layer { z-index:17; }
@@ -155,16 +165,60 @@
   height:31px;
   transform:none;
   border-radius:50%;
-  border:2px solid #5bc9ff;
-  color:#e9faff;
-  background:radial-gradient(circle at 35% 30%,#244d78,#07172a 70%);
-  box-shadow:inset 0 0 0 2px rgba(0,0,0,.45),0 0 10px rgba(70,187,255,.30);
-  font-size:12px;
+  border:2px solid color-mix(in srgb,var(--sigil,#5bc9ff),#fff 8%);
+  color:var(--sigil,#e9faff);
+  background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--sigil,#5bc9ff),#132945 58%),#07172a 70%);
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.45),0 0 10px color-mix(in srgb,var(--sigil,#5bc9ff),transparent 65%);
+  font-size:0;
 }
-.left-panel .trait.tier-1 .trait-gem { border-color:#7be7c2; box-shadow:0 0 11px rgba(94,233,185,.34),inset 0 0 0 2px rgba(0,0,0,.4); }
-.left-panel .trait.tier-2 .trait-gem { border-color:#dca0ff; color:#fff1ff; box-shadow:0 0 13px rgba(190,103,255,.42),inset 0 0 0 2px rgba(0,0,0,.4); }
+.left-panel .trait.tier-1 .trait-gem { box-shadow:0 0 11px color-mix(in srgb,var(--sigil,#7be7c2),transparent 58%),inset 0 0 0 2px rgba(0,0,0,.4); }
+.left-panel .trait.tier-2 .trait-gem { box-shadow:0 0 13px color-mix(in srgb,var(--sigil,#dca0ff),transparent 50%),inset 0 0 0 2px rgba(0,0,0,.4); }
 .left-panel .trait>strong { color:#d8ecff; }
 .left-panel .trait.active>strong { color:#fff1a1; }
+
+/* Trait symbols are explicit UI sigils rather than the previous first-letter placeholders. */
+[data-trait="Crystal"] { --sigil:#7de8ff; --sigil-symbol:"◆"; }
+[data-trait="Machine"] { --sigil:#ffc85d; --sigil-symbol:"⚙"; }
+[data-trait="Wild"] { --sigil:#8cf060; --sigil-symbol:"✤"; }
+[data-trait="Cyber"] { --sigil:#53d9ff; --sigil-symbol:"⌁"; }
+[data-trait="Underground"] { --sigil:#dc9a62; --sigil-symbol:"⛏"; }
+[data-trait="Void"] { --sigil:#b979ff; --sigil-symbol:"◉"; }
+[data-trait="Guardian"] { --sigil:#68d6ff; --sigil-symbol:"⬢"; }
+[data-trait="Ranger"] { --sigil:#ffd85f; --sigil-symbol:"⌖"; }
+[data-trait="Engineer"] { --sigil:#ffb85d; --sigil-symbol:"⌬"; }
+[data-trait="Brawler"] { --sigil:#ff8c62; --sigil-symbol:"✹"; }
+[data-trait="Assassin"] { --sigil:#ff666e; --sigil-symbol:"◈"; }
+[data-trait="Hacker"] { --sigil:#5dd7ff; --sigil-symbol:"⌘"; }
+[data-trait="Support"] { --sigil:#68e7c8; --sigil-symbol:"✚"; }
+[data-trait="Arcanist"] { --sigil:#d678ff; --sigil-symbol:"✦"; }
+.trait-gem::before,
+.synergy-sigil::before,
+.trait-archive-title>span::before {
+  content:var(--sigil-symbol,"✦");
+  display:block;
+  color:var(--sigil,currentColor);
+  font:900 15px/1 Arial,sans-serif;
+  text-shadow:0 0 7px color-mix(in srgb,var(--sigil,currentColor),transparent 35%);
+}
+.synergy-sigil { font-size:0; color:var(--sigil,#e9faff); border-color:color-mix(in srgb,var(--sigil,#65ccff),#fff 12%); }
+.trait-archive-title>span { font-size:0; color:var(--sigil,#c8ffda); border-color:color-mix(in srgb,var(--sigil,#68d794),#fff 8%); }
+
+/* Replay is outside .game-shell, so generic battle-board viewport rules used to win the cascade and
+   collapse the desktop replay to a tiny board. Give replay its own explicit 8:6 viewport geometry. */
+.replay-overlay .replay-stage { min-height:0; padding:10px 0; }
+.replay-overlay .replay-board.battle-board {
+  width:min(960px,calc(100vw - 48px),calc((100dvh - 190px) * 1.3333)) !important;
+  max-width:none !important;
+  max-height:calc(100dvh - 190px) !important;
+  height:auto !important;
+  aspect-ratio:8/6 !important;
+  margin:0 auto !important;
+  transform:perspective(1200px) rotateX(4deg);
+}
+.replay-overlay .replay-message { margin-top:9px; font-size:10px; }
+.replay-overlay>footer { min-height:54px; }
+.replay-overlay footer button { min-width:38px; }
+.replay-overlay footer span { font-size:9px; }
 
 /* Desktop readability pass. The previous compact pass preserved viewport fit but pushed many labels
    below practical reading size; these bumps keep the same layout dimensions and allow existing scroll areas. */
@@ -260,8 +314,7 @@
     box-shadow:0 5px 14px rgba(0,0,0,.35),inset 0 0 10px rgba(74,174,255,.08);
   }
   .synergy-sigil {
-    border-color:#65ccff;
-    background:radial-gradient(circle at 35% 30%,#235179,#071727 70%);
+    background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--sigil,#65ccff),#173654 60%),#071727 70%);
   }
 }
 
@@ -286,4 +339,12 @@
   .skill-vfx-null-sovereign:after,
   .skill-vfx-rune-blaster:after,
   .skill-vfx-chrono-mage:after { width:11px; height:11px; }
+
+  .replay-overlay .replay-stage { padding:4px 0; }
+  .replay-overlay .replay-board.battle-board {
+    width:calc(100vw - 12px) !important;
+    max-height:calc(100dvh - 150px) !important;
+    transform:none;
+  }
+  .replay-overlay .replay-message { margin-top:5px; font-size:8px; }
 }
