@@ -1,0 +1,121 @@
+/* v0.8 battle presentation polish.
+   Rendering-only: no combat timing, targeting, damage, economy, or AI rules change here. */
+
+/* Use the new dimensional board art as a cropped playfield backdrop while the real 8x6 DOM grid
+   remains authoritative for placement, targeting, drag/drop, and combat rendering. */
+.battle-board {
+  isolation:isolate;
+  background-color:#0a0d12;
+  background-image:
+    linear-gradient(rgba(6,8,11,.10),rgba(6,8,11,.18)),
+    url('/battle-board-v08.webp');
+  background-size:160% 160%;
+  background-position:50% 46%;
+  background-repeat:no-repeat;
+  border-color:#8c6935;
+  box-shadow:
+    0 30px 68px rgba(0,0,0,.76),
+    0 0 0 4px #090b0d,
+    0 0 0 5px rgba(226,183,89,.28),
+    0 0 34px rgba(64,134,203,.12);
+}
+
+.battle-board:before {
+  background:
+    radial-gradient(circle at 50% 52%,rgba(255,223,155,.055),transparent 42%),
+    linear-gradient(90deg,transparent 49.7%,rgba(255,226,154,.13) 50%,transparent 50.3%);
+  mix-blend-mode:screen;
+  opacity:.72;
+}
+
+.board-cell {
+  background:rgba(7,9,12,.055);
+  border-color:rgba(255,231,181,.13);
+  box-shadow:inset 0 0 0 1px rgba(3,5,7,.08);
+}
+.board-cell.enemy { background:rgba(77,29,42,.075); }
+.board-cell.friendly { background:rgba(25,89,72,.065); }
+.board-cell.available {
+  box-shadow:inset 0 0 0 1px rgba(116,239,176,.34),0 0 9px rgba(92,218,153,.08);
+}
+.board-cell.available:hover { background:rgba(91,210,151,.12); }
+.tile-lines { opacity:.28; }
+
+/* HP is the only persistent combat resource bar. Mana still exists in simulation and Unit Info,
+   but the battlefield bar is deliberately hidden for faster visual parsing on phones. */
+.mana-track { display:none !important; }
+.hp-track {
+  bottom:2.5%;
+  left:6%;
+  right:6%;
+  height:7px;
+  border-radius:5px;
+  box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 2px 7px rgba(0,0,0,.72),0 0 6px rgba(0,0,0,.5);
+}
+
+/* Slightly stronger combat motion/impact without adding simulation work or obscuring unit art. */
+.unit-token.action-attack .unit-art { animation:v08Attack .18s cubic-bezier(.16,.84,.32,1); }
+.unit-token.action-cast .unit-art {
+  animation:v08Cast .34s cubic-bezier(.18,.82,.24,1);
+  filter:brightness(1.18) saturate(1.16) drop-shadow(0 0 10px var(--unit));
+}
+.unit-token.action-cast .unit-aura { animation:v08Aura .34s ease-out; }
+.unit-token.action-hit .unit-art {
+  animation:v08Hit .16s ease-out;
+  filter:brightness(1.55) saturate(1.22) drop-shadow(0 0 7px rgba(255,236,175,.8));
+}
+
+.board-cell.impact:after {
+  inset:2%;
+  border:1px solid rgba(255,235,166,.72);
+  background:
+    radial-gradient(circle,rgba(255,255,224,.92) 0 5%,rgba(255,188,75,.64) 13%,rgba(255,109,48,.20) 34%,transparent 67%);
+  box-shadow:0 0 18px rgba(255,173,66,.32);
+  animation:v08Impact .30s ease-out;
+}
+
+.combat-float {
+  text-shadow:0 2px 3px #000,0 0 7px currentColor;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.85));
+}
+.combat-float.critical { transform:translateX(calc(-50% + var(--fx-index)*3px)) scale(1.08); }
+
+@keyframes v08Attack {
+  0% { transform:translateX(-4%) translateY(1%) rotate(-3deg) scale(.98); }
+  50% { transform:translateX(14%) translateY(-2%) rotate(5deg) scale(1.09); }
+  100% { transform:none; }
+}
+@keyframes v08Cast {
+  0% { transform:scale(.92); filter:brightness(1); }
+  42% { transform:translateY(-7%) scale(1.10); filter:brightness(1.45); }
+  72% { transform:translateY(-3%) scale(1.04); }
+  100% { transform:none; }
+}
+@keyframes v08Aura {
+  0% { opacity:.12; transform:scaleY(.22) scale(.8); }
+  48% { opacity:.52; transform:scaleY(.38) scale(1.2); }
+  100% { opacity:.16; transform:scaleY(.24) scale(1); }
+}
+@keyframes v08Hit {
+  0% { transform:none; }
+  30% { transform:translateX(-9%) rotate(-5deg) scale(.98); }
+  68% { transform:translateX(5%) rotate(3deg); }
+  100% { transform:none; }
+}
+@keyframes v08Impact {
+  0% { opacity:1; transform:scale(.28); }
+  55% { opacity:.92; transform:scale(1); }
+  100% { opacity:0; transform:scale(1.24); }
+}
+
+@media (max-width:600px) {
+  .battle-board {
+    /* Keep the visual center on the playable stone field rather than the decorative outer scenery. */
+    background-size:168% 168%;
+    background-position:50% 45%;
+    box-shadow:0 20px 38px rgba(0,0,0,.72),0 0 0 3px #090b0d,0 0 0 4px rgba(226,183,89,.22);
+  }
+  .hp-track { left:5%; right:5%; height:6px; bottom:2%; }
+  .unit-token.action-cast .unit-art { filter:brightness(1.12) saturate(1.1) drop-shadow(0 0 6px var(--unit)); }
+  .board-cell.impact:after { box-shadow:0 0 10px rgba(255,173,66,.25); }
+}
