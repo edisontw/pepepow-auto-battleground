@@ -146,6 +146,40 @@ function synergyValue(units: OwnedUnit[]) {
 function unitPower(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * (unit.star === 1 ? 9 : unit.star === 2 ? 28 : 85); }
 function unitRefund(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * starCopies(unit.star); }
 
+/* Late-game decisions should be based on the formation that is actually fighting, not every spare
+   unit on the Bench. This prevents phantom Bench synergies from pulling Hard AI away from a strong core. */
+function strategicBoardUnits(ai: AICommander) {
+  const deployed = ai.units.filter((unit) => unit.position !== null);
+  if (deployed.length) return deployed;
+  return [...ai.units].sort((a, b) => unitPower(b) - unitPower(a) || (a.uid < b.uid ? -1 : 1)).slice(0, Math.min(ai.level, ai.units.length));
+}
+
+function strategicTraitCounts(ai: AICommander) {
+  return uniqueTraitCounts(strategicBoardUnits(ai));
+}
+
+function completesStrategicBreakpoint(ai: AICommander, unitId: string) {
+  if (ownedBaseCopies(ai.units, unitId) > 0) return false;
+  const counts = strategicTraitCounts(ai);
+  return UNIT_MAP[unitId].traits.some((trait) => {
+    const before = counts.get(trait) ?? 0;
+    return activeTier(trait, before + 1) > activeTier(trait, before);
+  });
+}
+
+function isLateStrategicPurchase(ai: AICommander, unitId: string) {
+  if (ai.difficulty !== "Hard" || ai.level < 7) return true;
+  const def = UNIT_MAP[unitId];
+  const copies = ownedBaseCopies(ai.units, unitId);
+  const onCore = ai.units.some((unit) => unit.unitId === unitId && unit.position !== null);
+  const upgraded = ai.units.some((unit) => unit.unitId === unitId && unit.star > 1);
+  const upgradeNear = copies > 0 && (copies % 3 === 2 || copies % 9 === 8);
+  const breakpoint = completesStrategicBreakpoint(ai, unitId);
+  const focus = def.traits.includes(ai.focus);
+  const preferred = (preferredRoles[ai.focus] ?? []).includes(def.traits[1]);
+  return def.cost >= 4 || breakpoint || upgradeNear || upgraded || onCore || (def.cost >= 3 && (focus || preferred));
+}
+
 function compositionValue(ai: AICommander, units: OwnedUnit[]) {
   const counts = uniqueTraitCounts(units);
   let score = units.reduce((sum, unit) => sum + unitPower(unit), 0);
@@ -177,6 +211,12 @@ function compositionValue(ai: AICommander, units: OwnedUnit[]) {
     if (frontline >= 2 && support >= 2) score += 12;
     if (assassin >= 2 && frontline >= 1) score += 8;
     if (arcanist >= 2 && support >= 1) score += 7;
+    if (ai.level >= 7) {
+      score += units.reduce((sum, unit) => {
+        const cost = UNIT_MAP[unit.unitId].cost;
+        return sum + (cost >= 4 ? cost * (unit.star === 1 ? 7 : unit.star === 2 ? 15 : 24) : 0);
+      }, 0);
+    }
   }
   return score;
 }
@@ -185,7 +225,7 @@ function candidateValue(ai: AICommander, unitId: string, weights: Weights, rando
   const def = UNIT_MAP[unitId];
   const copies = ownedBaseCopies(ai.units, unitId);
   const upgrade = copies % 3 === 2 || copies % 9 === 8 ? 12 : copies ? 4 : 0;
-  const counts = uniqueTraitCounts(ai.units);
+  const counts = ai.difficulty === "Hard" && ai.level >= 7 ? strategicTraitCounts(ai) : uniqueTraitCounts(ai.units);
   const isNew = copies === 0;
   let breakpoint = 0;
   const synergy = def.traits.reduce((sum, trait) => {
@@ -199,8 +239,9 @@ function candidateValue(ai: AICommander, unitId: string, weights: Weights, rando
   const hardCounter = ai.difficulty === "Hard" && def.traits[1] === "Assassin" ? 7 : 0;
   const sustain = ai.difficulty === "Hard" && (def.traits.includes("Wild") || def.traits[1] === "Support" || def.traits[1] === "Guardian") ? 4 : 0;
   const magicPressure = ai.difficulty === "Hard" && def.traits.includes("Arcanist") ? 5 : 0;
-  const lateGame = ai.difficulty === "Hard" && ai.level >= 7 && def.cost >= 4 ? 7 : 0;
-  return def.cost * weights.power + upgrade * weights.upgrade + synergy * weights.synergy + (focus + preferred + hardCounter + sustain + magicPressure + breakpoint + lateGame) * weights.focus + (random.next() - .5) * weights.noise;
+  const lateGame = ai.difficulty === "Hard" && ai.level >= 7 && def.cost >= 4 ? 11 : 0;
+  const lateNoveltyPenalty = ai.difficulty === "Hard" && ai.level >= 7 && isNew && def.cost <= 2 && breakpoint === 0 ? 24 : 0;
+  return def.cost * weights.power + upgrade * weights.upgrade + synergy * weights.synergy + (focus + preferred + hardCounter + sustain + magicPressure + breakpoint + lateGame) * weights.focus - lateNoveltyPenalty + (random.next() - .5) * weights.noise;
 }
 
 function effectiveWeights(ai: AICommander): Weights {
@@ -268,6 +309,19 @@ function selectBoard(ai: AICommander, units: OwnedUnit[], level: number) {
     }
   };
   visit(0);
+
+  /* Hysteresis: a mature Hard formation is retained unless the replacement is materially stronger.
+     This stops tiny score differences from causing a different late-game army every round. */
+  const current = units.filter((unit) => unit.position !== null);
+  if (current.length === count) {
+    const currentScore = compositionValue(ai, current);
+    const late = level >= 7;
+    const margin = late ? Math.max(24, currentScore * .05) : 6;
+    const currentIds = new Set(current.map((unit) => unit.uid));
+    const replacements = best.filter((unit) => !currentIds.has(unit.uid)).length;
+    if (bestScore < currentScore + margin) return current;
+    if (late && replacements >= 2 && bestScore < currentScore * 1.1) return current;
+  }
   return best;
 }
 
@@ -280,7 +334,19 @@ function positionBoard(ai: AICommander, units: OwnedUnit[], level: number) {
   const supportLane = ai.difficulty === "Hard" ? [9, 14, 10, 13, 2, 5, 1, 6, 11, 12] : back.concat(middle);
   const assassinLane = ai.difficulty === "Hard" ? [16, 23, 17, 22, 8, 15, 18, 21, ...middle] : [7, 0, 15, 8, ...middle, ...front];
   const occupied = new Set<number>();
+  const retainedPositions = new Map<string, number>();
+
+  if (ai.difficulty === "Hard" && level >= 7) {
+    for (const unit of selected) {
+      if (unit.position === null || unit.position < 0 || unit.position >= 24 || occupied.has(unit.position)) continue;
+      occupied.add(unit.position);
+      retainedPositions.set(unit.uid, unit.position);
+    }
+  }
+
   const place = (unit: OwnedUnit) => {
+    const retained = retainedPositions.get(unit.uid);
+    if (retained !== undefined) return { ...unit, position: retained };
     const cls = UNIT_MAP[unit.unitId].traits[1];
     let lane = ai.difficulty === "Easy"
       ? middle.concat(front, back)
@@ -304,7 +370,7 @@ function positionBoard(ai: AICommander, units: OwnedUnit[], level: number) {
 function benchKeepValue(ai: AICommander, unit: OwnedUnit) {
   const def = UNIT_MAP[unit.unitId];
   const copies = ownedBaseCopies(ai.units, unit.unitId);
-  const counts = uniqueTraitCounts(ai.units);
+  const counts = ai.difficulty === "Hard" && ai.level >= 7 ? strategicTraitCounts(ai) : uniqueTraitCounts(ai.units);
   let score = unitPower(unit);
   if (unit.star > 1) score += unit.star === 2 ? 40 : 120;
   if (copies % 3 === 2 || copies % 9 === 8) score += 42;
@@ -318,10 +384,11 @@ function benchKeepValue(ai: AICommander, unit: OwnedUnit) {
   return score;
 }
 
-function makeHardBenchRoom(ai: AICommander) {
+function makeHardBenchRoom(ai: AICommander, incomingUnitId: string) {
   if (ai.difficulty !== "Hard") return ai;
   const bench = ai.units.filter((unit) => unit.position === null);
   if (bench.length < GAME_RULES.benchSize) return ai;
+  if (!isLateStrategicPurchase(ai, incomingUnitId)) return ai;
   const sellable = bench.filter((unit) => unit.star === 1 && unit.itemIds.length === 0)
     .sort((a, b) => benchKeepValue(ai, a) - benchKeepValue(ai, b) || UNIT_MAP[a.unitId].cost - UNIT_MAP[b.unitId].cost || (a.uid < b.uid ? -1 : 1));
   const worst = sellable[0];
@@ -332,7 +399,7 @@ function makeHardBenchRoom(ai: AICommander) {
 function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom) {
   const choices = ai.shop.map((unitId, index) => ({ unitId, index, score: unitId ? candidateValue(ai, unitId, weights, random) : -Infinity })).sort((a, b) => b.score - a.score).slice(0, weights.candidates);
   for (const choice of choices) {
-    if (!choice.unitId) continue;
+    if (!choice.unitId || !isLateStrategicPurchase(ai, choice.unitId)) continue;
     const def = UNIT_MAP[choice.unitId];
     const protectedGold = nextInterestFloor(ai.gold, weights.economyFloor);
     const copies = ownedBaseCopies(ai.units, choice.unitId);
@@ -343,7 +410,7 @@ function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom) {
     let combined = combineAIUnits([...shopper.units, { uid: aiUid(random), unitId: choice.unitId, star: 1, position: null, itemIds: [] }], random);
     let benchCount = Math.max(0, combined.units.length - shopper.level);
     if (benchCount > GAME_RULES.benchSize) {
-      shopper = makeHardBenchRoom(ai);
+      shopper = makeHardBenchRoom(ai, choice.unitId);
       if (shopper === ai) continue;
       combined = combineAIUnits([...shopper.units, { uid: aiUid(random), unitId: choice.unitId, star: 1, position: null, itemIds: [] }], random);
       benchCount = Math.max(0, combined.units.length - shopper.level);
@@ -355,7 +422,7 @@ function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom) {
 }
 
 function shouldChaseSynergy(ai: AICommander) {
-  const counts = uniqueTraitCounts(ai.units);
+  const counts = ai.difficulty === "Hard" && ai.level >= 7 ? strategicTraitCounts(ai) : uniqueTraitCounts(ai.units);
   for (const [trait, count] of counts) {
     const [first, second] = TRAIT_DETAILS[trait].thresholds;
     if (count === first - 1 || count === second - 1) return true;
@@ -398,7 +465,14 @@ export function planAI(ai: AICommander, round: number, random: SeededRandom, rec
     if (next.gold - GAME_RULES.rerollCost < floor && next.personality !== "Collector" && !(next.difficulty === "Hard" && next.health < 65)) break;
     const upgradeChance = next.units.some((unit) => ownedBaseCopies(next.units, unit.unitId) % 3 === 2);
     const synergyChase = shouldChaseSynergy(next);
-    if (!upgradeChance && !synergyChase && next.personality !== "Collector" && next.personality !== "Synergy Hunter" && random.next() > (next.difficulty === "Hard" ? .84 : .4)) break;
+    const lateHard = next.difficulty === "Hard" && next.level >= 7;
+    const pressure = next.health < 55 || next.streak <= -2;
+    const lateCarryChase = lateHard && strategicBoardUnits(next).some((unit) => UNIT_MAP[unit.unitId].cost >= 4 && unit.star === 1 && ownedBaseCopies(next.units, unit.unitId) < 3);
+    if (!upgradeChance && !synergyChase && !lateCarryChase) {
+      if (lateHard) {
+        if (random.next() > (pressure ? .25 : .08)) break;
+      } else if (next.personality !== "Collector" && next.personality !== "Synergy Hunter" && random.next() > (next.difficulty === "Hard" ? .42 : .4)) break;
+    }
     next = { ...next, gold: next.gold - GAME_RULES.rerollCost, shop: rollAIShop(next.level, next.units, random), behavior: { ...next.behavior, rerolls: next.behavior.rerolls + 1 } };
     for (let purchase = 0; purchase < GAME_RULES.shopSize; purchase += 1) {
       const bought = maybeBuy(next, weights, random); if (bought === next) break; next = bought;
