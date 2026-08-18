@@ -2,10 +2,11 @@
 
 > Canonical context for future ChatGPT Sites / Codex work. Read this file first; do not rescan the whole repository unless the task genuinely requires it.
 
-**Last updated:** 2026-08-18  
+**Last updated:** 2026-08-19  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
 **Current deployed version:** v0.8  
-**GitHub main:** post-v0.8 polish candidate; current GitHub changes described below are not yet redeployed
+**Currently deployed commit:** `2169fbc89ddb847f402b499d8da6f56297fecb91`  
+**GitHub main:** contains the post-deploy fixes below; these follow-up changes are not yet redeployed
 
 ## 1. Product / architecture invariants
 
@@ -55,23 +56,21 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 
 - Board asset: `public/battle-board-v08.webp`.
 - Authoritative placement is the 8×6 DOM grid; decorative painted tiles must never imply different legal coordinates.
-- Post-v0.8 CSS de-emphasizes painted tile lines and strengthens the real DOM cell surfaces/borders so pieces visually sit on the legal cells.
 - Battlefield Mana bars remain hidden; Mana is still simulated and visible in Unit Info.
-- HP is the only persistent battlefield resource bar and is now always green rather than red/yellow/green by percentage.
-- Existing projectile events are rendered more clearly for ranged and magic attacks. Area/global skills already emit one projectile per affected target, so multi-target fan-out is presentation-only.
-- Mobile no longer suppresses projectile VFX entirely; it uses a lighter projectile treatment.
-- Attack/cast/hit/impact motion remains rendering-only and does not change combat timing.
-- Desktop Board-corner synergy totems remain hidden; mobile indicators remain outside playable Board cells.
-- Synergy list / mobile indicator styling now uses a clearer blue/glass presentation inspired by the current visual reference.
+- HP is the only persistent battlefield resource bar and is always green.
+- Ranged / magic attacks use projectile events already emitted by deterministic combat; AoE/global skills fan out visually to affected targets without changing damage logic.
+- Player and enemy pieces now have restrained team distinction: player green edge/glow cues and enemy red edge/glow/star cues while HP fill remains green for both.
+- Desktop Board-corner synergy totems remain hidden; mobile totems stay outside playable cells.
+- Mobile totems now map every trait to an explicit colored symbol using the trait name already present in their title attribute instead of relying on a first-letter placeholder.
 
-## 6. Readability / responsive presentation
+## 6. Replay / responsive presentation
 
-- Desktop small labels and numeric text receive a moderate readability increase without changing major panel dimensions.
-- Guide, Archive, Unit Info, synergy, Shop and other explanatory text receive larger desktop sizes.
-- Existing scroll areas remain the overflow mechanism where more text no longer fits.
+- Full-screen Replay remains independent of the normal in-game Board sizing rules.
+- Desktop Replay has explicit 8:6 geometry and viewport-based width/height guards so generic low-height Board rules cannot collapse it to a tiny center board.
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
-- v0.7 presentation still applies: 2★/3★ decorative glow removed and all five Shop cards fit supported phone widths.
+- `app/v08-fixes.css` is loaded after `v08-overrides.css` for narrowly scoped post-deploy corrections.
+- Site metadata description has been updated to v0.8.
 
 ## 7. Progression / Shop / economy
 
@@ -85,17 +84,21 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 ## 8. Planning AI
 
 - AI uses the same economy, Shop odds, unit stats and level rules as the player.
-- Hard AI now has lower decision noise, stronger preference for coherent frontline + damage + sustain formations, and additional value for Assassin/Wild/Support/Guardian/Arcanist breakpoints.
-- Hard AI is more willing to level and reroll under pressure (low HP or loss streak) instead of over-protecting Interest.
-- Hard support units favor protected middle/back positions; Assassin lanes remain edge-biased for backline access.
-- Hard AI can sell one low-value 1★ unequipped Bench unit at the normal refund when a full Bench blocks a strategically useful purchase. Upgrade-near, focused, high-cost and active-synergy pieces receive higher keep scores.
-- AI must still never receive hidden Gold, XP, Shop, item, stat or combat advantages.
+- Hard AI still values coherent frontline + damage + sustain formations and Assassin/Wild/Support/Guardian/Arcanist breakpoints.
+- Late Hard AI (level 7+) now evaluates synergy progress from its active fighting core rather than spare Bench units, preventing phantom Bench synergies from driving lineup changes.
+- Mature late-game formations use hysteresis: the current Board is retained unless a candidate composition is materially stronger; multi-unit swaps require a larger gain.
+- Selected late-game core units retain their valid existing positions when possible instead of being fully re-laid every planning round.
+- Late Hard purchases are restricted to meaningful upgrades/core copies, active-synergy breakpoints, aligned 3-cost pieces, or 4/5-cost carries; low-value novelty purchases are suppressed.
+- 4/5-cost units receive additional late composition value.
+- Hard AI no longer spends most idle rerolls when no upgrade, breakpoint, or high-cost carry chase exists; pressure can still justify aggressive rolling.
+- Full-Bench selling remains legal and at normal refund, but late Hard AI only clears space for a strategically useful incoming unit.
+- AI must never receive hidden Gold, XP, Shop, item, stat or combat advantages.
 
 ## 9. Authoritative modules
 
 - Main UI / input / Board / Bench / Shop / archive / audio: `app/game.tsx`
 - Base visuals: `app/globals.css`
-- Responsive/presentation overrides: `app/v06-overrides.css`, `app/v07-overrides.css`, `app/v08-overrides.css`
+- Responsive/presentation overrides: `app/v06-overrides.css`, `app/v07-overrides.css`, `app/v08-overrides.css`, `app/v08-fixes.css`
 - Units / traits / items / synergy definitions: `app/game-data.ts`
 - Combat / snapshots / replay: `app/battle-engine.ts`
 - Economy / progression / Shop odds: `app/game-rules.ts`
@@ -104,10 +107,11 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 
 ## 10. Validation / next step
 
-- The deployed v0.8 site predates the current post-v0.8 GitHub polish in `app/v08-overrides.css` and `app/ai-engine.ts`.
-- Current changes have not yet been built, rendered, battle-simulated, or redeployed in this task.
-- Before deployment, proportional verification should cover: TypeScript/build, AI legality/regression tests, representative Hard-AI simulations, desktop text fit, Board/grid visual alignment, green HP bars, projectile visibility, and representative desktop/mobile screenshots.
-- No combat-engine logic changed, so deterministic combat balance stress tests are not required solely for the VFX/readability changes; AI simulations are warranted because planning logic changed.
+- Follow-up changes after deployed commit `2169fbc...` have been written to GitHub `main` but not deployed in this task.
+- No combat-engine logic changed; replay/team/totem changes are presentation-only.
+- Planning AI logic changed and should receive proportional verification before the next release: TypeScript/build, AI legality/regression tests, and representative late Hard-AI simulations (especially rounds / levels where the core is already mature).
+- Visual verification should specifically cover desktop Replay size, mobile trait totem symbols, player/enemy differentiation, and normal green HP bars.
+- Do not rerun broad deterministic combat stress tests solely for these changes unless a combat-engine regression appears.
 
 ## 11. Next-task protocol
 
