@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aiStrategySnapshot, assertAILegal, createAICommanders, ownedBaseCopies, planAI } from "../app/ai-engine";
+import { advanceAICommanders, aiStrategySnapshot, assertAILegal, createAICommanders, ownedBaseCopies, planAI } from "../app/ai-engine";
 import { createSeededRandom, mixSeed, OwnedUnit } from "../app/battle-engine";
 
 test("owned-copy reminders count upgraded pieces as base copies", () => {
@@ -61,6 +61,19 @@ test("difficulty changes evaluation while preserving identical resources and rul
     signatures.add(JSON.stringify(aiStrategySnapshot(ai)));
   }
   assert.ok(signatures.size >= 2, "difficulty should affect candidate evaluation or positioning");
+});
+
+test("AI begins receiving legal neutral-reward equipment after round 5", () => {
+  const base = createAICommanders("Hard", createSeededRandom(1501));
+  const beforeReward = advanceAICommanders(structuredClone(base), 5, createSeededRandom(1502));
+  const afterReward = advanceAICommanders(structuredClone(base), 6, createSeededRandom(1502));
+  const itemCount = (ais: typeof base) => ais.reduce((sum, ai) => sum + ai.units.reduce((unitSum, unit) => unitSum + unit.itemIds.length, 0), 0);
+  assert.equal(itemCount(beforeReward), 0);
+  assert.ok(itemCount(afterReward) > 0, "surviving AI should equip neutral-cycle rewards after round 5");
+  for (const ai of afterReward) {
+    assert.equal(assertAILegal(ai), true);
+    assert.ok(ai.units.every((unit) => unit.itemIds.length <= 2));
+  }
 });
 
 test("Hard AI converts the same legal economy into stronger active-synergy planning", () => {
