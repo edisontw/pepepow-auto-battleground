@@ -1,0 +1,56 @@
+/* Targeted follow-up fixes after v0.8 deployment. Loaded after v08-overrides.css. */
+
+/* The JSX already exposes the full trait name in each mobile totem title. Use it to assign a
+   deterministic sigil without changing the gameplay component or falling back to first letters. */
+.synergy-totem[title^="Crystal:"] { --sigil:#7de8ff; --sigil-symbol:"◆"; }
+.synergy-totem[title^="Machine:"] { --sigil:#ffc85d; --sigil-symbol:"⚙"; }
+.synergy-totem[title^="Wild:"] { --sigil:#8cf060; --sigil-symbol:"✤"; }
+.synergy-totem[title^="Cyber:"] { --sigil:#53d9ff; --sigil-symbol:"⌁"; }
+.synergy-totem[title^="Underground:"] { --sigil:#dc9a62; --sigil-symbol:"⛏"; }
+.synergy-totem[title^="Void:"] { --sigil:#b979ff; --sigil-symbol:"◉"; }
+.synergy-totem[title^="Guardian:"] { --sigil:#68d6ff; --sigil-symbol:"⬢"; }
+.synergy-totem[title^="Ranger:"] { --sigil:#ffd85f; --sigil-symbol:"⌖"; }
+.synergy-totem[title^="Engineer:"] { --sigil:#ffb85d; --sigil-symbol:"⌬"; }
+.synergy-totem[title^="Brawler:"] { --sigil:#ff8c62; --sigil-symbol:"✹"; }
+.synergy-totem[title^="Assassin:"] { --sigil:#ff666e; --sigil-symbol:"◈"; }
+.synergy-totem[title^="Hacker:"] { --sigil:#5dd7ff; --sigil-symbol:"⌘"; }
+.synergy-totem[title^="Support:"] { --sigil:#68e7c8; --sigil-symbol:"✚"; }
+.synergy-totem[title^="Arcanist:"] { --sigil:#d678ff; --sigil-symbol:"✦"; }
+
+.synergy-totem .synergy-sigil {
+  font-size:0;
+  color:var(--sigil,#e9faff);
+  border-color:color-mix(in srgb,var(--sigil,#65ccff),#fff 12%);
+  background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--sigil,#65ccff),#173654 60%),#071727 70%);
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.45),0 0 10px color-mix(in srgb,var(--sigil,#65ccff),transparent 55%);
+}
+.synergy-totem .synergy-sigil::before {
+  content:var(--sigil-symbol,"✦");
+  display:block;
+  color:var(--sigil,#e9faff);
+  font:900 14px/1 Arial,sans-serif;
+  text-shadow:0 0 7px color-mix(in srgb,var(--sigil,#e9faff),transparent 35%);
+}
+
+/* v08-overrides prepared data-trait driven icons for future markup; current SynergyList does not yet
+   carry data-trait. Keep its original readable first-letter fallback instead of showing one generic star. */
+.left-panel .trait-gem { font-size:12px; }
+.left-panel .trait-gem::before { content:none; }
+.trait-archive-title>span::before { content:none; }
+
+/* Extra replay guard: no normal game-board height formula may collapse a desktop full-screen replay. */
+@media (min-width:901px) {
+  .replay-overlay .replay-stage { width:100%; min-width:0; }
+  .replay-overlay .replay-board.battle-board {
+    width:min(960px,calc(100vw - 48px),calc((100dvh - 190px) * 1.3333)) !important;
+    min-width:min(620px,calc(100vw - 48px)) !important;
+    max-height:calc(100dvh - 190px) !important;
+    aspect-ratio:8/6 !important;
+  }
+}
+
+/* Keep team distinction restrained: red enemy treatment should not recolor the green HP fill. */
+.unit-token.enemy .hp-track span,
+.unit-token.player .hp-track span {
+  background:linear-gradient(90deg,#27b85c,#62e88b 72%,#82f3a4) !important;
+}
