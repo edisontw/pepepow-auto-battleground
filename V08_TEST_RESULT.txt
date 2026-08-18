@@ -1,0 +1,66 @@
+FAIL
+commit=3bcba0d51aaa8a59b04612708d9209f2c7783e64
+
+
+> pepepow-auto-battleground@0.5.0 test
+> npm run build && node --test tests/rendered-html.test.mjs && node --import tsx --test tests/*.test.ts
+
+
+> pepepow-auto-battleground@0.5.0 build
+> next build
+
+⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+▲ Next.js 16.2.6 (Turbopack)
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.3s
+  Running TypeScript ...
+  Finished TypeScript in 2.4s ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/3) ...
+✓ Generating static pages using 3 workers (3/3) in 107ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+└ ○ /_not-found
+
+
+○  (Static)  prerendered as static content
+
+TAP version 13
+# Subtest: renders development preview metadata
+not ok 1 - renders development preview metadata
+  ---
+  duration_ms: 0.91202
+  type: 'test'
+  location: '/home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/tests/rendered-html.test.mjs:7:1'
+  failureType: 'testCodeFailure'
+  error: "Cannot find module '/home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/dist/server/index.js' imported from /home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/tests/rendered-html.test.mjs"
+  code: 'ERR_MODULE_NOT_FOUND'
+  stack: |-
+    finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    moduleResolve (node:internal/modules/esm/resolve:861:10)
+    defaultResolve (node:internal/modules/esm/resolve:985:11)
+    #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+    ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
+    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
+    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:680:36)
+    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
+    ModuleLoader.import (node:internal/modules/esm/loader:679:21)
+    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 39.367715
