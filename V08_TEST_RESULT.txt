@@ -1,66 +1,163 @@
 FAIL
-commit=3bcba0d51aaa8a59b04612708d9209f2c7783e64
+commit=4a1097eafea2001a31aa882ff8ed61b34a726e75
 
-
-> pepepow-auto-battleground@0.5.0 test
-> npm run build && node --test tests/rendered-html.test.mjs && node --import tsx --test tests/*.test.ts
-
-
-> pepepow-auto-battleground@0.5.0 build
-> next build
-
-⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
-Attention: Next.js now collects completely anonymous telemetry regarding usage.
-This information is used to shape Next.js' roadmap and prioritize features.
-You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-https://nextjs.org/telemetry
-
-▲ Next.js 16.2.6 (Turbopack)
-
-  Creating an optimized production build ...
-✓ Compiled successfully in 2.3s
-  Running TypeScript ...
-  Finished TypeScript in 2.4s ...
-  Collecting page data using 3 workers ...
-  Generating static pages using 3 workers (0/3) ...
-✓ Generating static pages using 3 workers (3/3) in 107ms
-  Finalizing page optimization ...
-
-Route (app)
-┌ ○ /
-└ ○ /_not-found
-
-
-○  (Static)  prerendered as static content
-
-TAP version 13
-# Subtest: renders development preview metadata
-not ok 1 - renders development preview metadata
+ok 13 - three Wild units can now activate the reachable tier-two health bonus
   ---
-  duration_ms: 0.91202
+  duration_ms: 0.287784
   type: 'test'
-  location: '/home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/tests/rendered-html.test.mjs:7:1'
-  failureType: 'testCodeFailure'
-  error: "Cannot find module '/home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/dist/server/index.js' imported from /home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/tests/rendered-html.test.mjs"
-  code: 'ERR_MODULE_NOT_FOUND'
-  stack: |-
-    finalizeResolution (node:internal/modules/esm/resolve:275:11)
-    moduleResolve (node:internal/modules/esm/resolve:861:10)
-    defaultResolve (node:internal/modules/esm/resolve:985:11)
-    #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
-    ModuleLoader.resolve (node:internal/modules/esm/loader:724:38)
-    ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:320:38)
-    onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:680:36)
-    TracingChannel.tracePromise (node:diagnostics_channel:350:14)
-    ModuleLoader.import (node:internal/modules/esm/loader:679:21)
-    defaultImportModuleDynamicallyForModule (node:internal/modules/esm/utils:222:31)
   ...
-1..1
-# tests 1
+# Subtest: v0.8 adds three original Arcanists without adding Ranger or Void to them
+ok 14 - v0.8 adds three original Arcanists without adding Ranger or Void to them
+  ---
+  duration_ms: 0.150517
+  type: 'test'
+  ...
+# Subtest: Arcane Apprentice Mana Ward refunds Arcanist-scaled mana after casting
+ok 15 - Arcane Apprentice Mana Ward refunds Arcanist-scaled mana after casting
+  ---
+  duration_ms: 11.413076
+  type: 'test'
+  ...
+# Subtest: Rune Blaster Rune Nova reaches enemies two cells from the locked target
+ok 16 - Rune Blaster Rune Nova reaches enemies two cells from the locked target
+  ---
+  duration_ms: 5.024314
+  type: 'test'
+  ...
+# Subtest: Chrono Mage Time Lock applies a one-tick stun to surviving targets
+ok 17 - Chrono Mage Time Lock applies a one-tick stun to surviving targets
+  ---
+  duration_ms: 4.794508
+  type: 'test'
+  ...
+# Subtest: identical inputs and seed reproduce the complete battle result
+ok 18 - identical inputs and seed reproduce the complete battle result
+  ---
+  duration_ms: 8.904245
+  type: 'test'
+  ...
+# Subtest: empty-side battles resolve at tick zero
+ok 19 - empty-side battles resolve at tick zero
+  ---
+  duration_ms: 0.389337
+  type: 'test'
+  ...
+# Subtest: passive XP follows the tuned two-round curve and caps at eight
+ok 20 - passive XP follows the tuned two-round curve and caps at eight
+  ---
+  duration_ms: 1.701124
+  type: 'test'
+  ...
+# Subtest: XP carry supports level boundaries and max level
+ok 21 - XP carry supports level boundaries and max level
+  ---
+  duration_ms: 0.350348
+  type: 'test'
+  ...
+# Subtest: income thresholds and symmetric streak bonuses use one rule source
+ok 22 - income thresholds and symmetric streak bonuses use one rule source
+  ---
+  duration_ms: 0.281294
+  type: 'test'
+  ...
+# Subtest: every displayed shop odds row totals 100 percent
+not ok 23 - every displayed shop odds row totals 100 percent
+  ---
+  duration_ms: 3.260746
+  type: 'test'
+  location: '/home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/tests/game-rules.test.ts:1:952'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    55 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 55
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (/home/runner/work/pepepow-auto-battleground/pepepow-auto-battleground/tests/game-rules.test.ts:27:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: drop resolution prioritizes Board, then Bench, then explicit Sell
+ok 24 - drop resolution prioritizes Board, then Bench, then explicit Sell
+  ---
+  duration_ms: 0.302105
+  type: 'test'
+  ...
+# Subtest: mobile gameplay exposes compact equipment and synergy panels
+ok 25 - mobile gameplay exposes compact equipment and synergy panels
+  ---
+  duration_ms: 1.6522
+  type: 'test'
+  ...
+# Subtest: unit artwork cannot trigger iOS image callouts during long press
+ok 26 - unit artwork cannot trigger iOS image callouts during long press
+  ---
+  duration_ms: 0.489398
+  type: 'test'
+  ...
+# Subtest: low-height desktop shop stretches inside its actual grid track
+ok 27 - low-height desktop shop stretches inside its actual grid track
+  ---
+  duration_ms: 0.438881
+  type: 'test'
+  ...
+# Subtest: post-v0.6 desktop Shop preserves full unit art in a horizontal card
+ok 28 - post-v0.6 desktop Shop preserves full unit art in a horizontal card
+  ---
+  duration_ms: 0.334665
+  type: 'test'
+  ...
+# Subtest: post-v0.6 mobile Board reserves a separate Bench row
+ok 29 - post-v0.6 mobile Board reserves a separate Bench row
+  ---
+  duration_ms: 0.311139
+  type: 'test'
+  ...
+# Subtest: post-v0.6 mobile HUD keeps primary numbers readable
+ok 30 - post-v0.6 mobile HUD keeps primary numbers readable
+  ---
+  duration_ms: 0.244358
+  type: 'test'
+  ...
+# Subtest: defeat uses a non-control emblem rather than a close X
+ok 31 - defeat uses a non-control emblem rather than a close X
+  ---
+  duration_ms: 0.250377
+  type: 'test'
+  ...
+# Subtest: battlefield pieces hide labels and pedestals while keeping stronger health bars
+ok 32 - battlefield pieces hide labels and pedestals while keeping stronger health bars
+  ---
+  duration_ms: 0.308124
+  type: 'test'
+  ...
+# Subtest: planning warns when the board is underfilled
+ok 33 - planning warns when the board is underfilled
+  ---
+  duration_ms: 0.409027
+  type: 'test'
+  ...
+# Subtest: battle archive exposes enemy historical inspection
+ok 34 - battle archive exposes enemy historical inspection
+  ---
+  duration_ms: 0.669029
+  type: 'test'
+  ...
+1..34
+# tests 34
 # suites 0
-# pass 0
+# pass 33
 # fail 1
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 39.367715
+# duration_ms 13412.750743
