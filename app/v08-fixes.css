@@ -32,11 +32,11 @@
   text-shadow:0 0 7px color-mix(in srgb,var(--sigil,#e9faff),transparent 35%);
 }
 
-/* v08-overrides prepared data-trait driven icons for future markup; current SynergyList does not yet
-   carry data-trait. Keep its original readable first-letter fallback instead of showing one generic star. */
-.left-panel .trait-gem { font-size:12px; }
-.left-panel .trait-gem::before { content:none; }
+/* Current SynergyList/Archive markup does not expose a trait attribute, so keep their original
+   first-letter fallback instead of showing the generic star prepared by v08-overrides. */
+.trait-list .trait-gem::before,
 .trait-archive-title>span::before { content:none; }
+.left-panel .trait-gem { font-size:12px; }
 
 /* Extra replay guard: no normal game-board height formula may collapse a desktop full-screen replay. */
 @media (min-width:901px) {
