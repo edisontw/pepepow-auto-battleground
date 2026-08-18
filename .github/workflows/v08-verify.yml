@@ -25,6 +25,7 @@ jobs:
       - name: Build and regression tests
         shell: bash
         run: |
+          # Targeted v0.8 rerun after making the Shop-odds fixture derive from the live unit pool.
           set +e
           npm run build > /tmp/v08-test.log 2>&1
           build_code=$?
