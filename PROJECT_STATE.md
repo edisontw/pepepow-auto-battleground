@@ -4,9 +4,9 @@
 
 **Last updated:** 2026-08-19  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
-**Current deployed version:** v0.8  
-**Currently deployed commit:** `2169fbc89ddb847f402b499d8da6f56297fecb91`  
-**GitHub main:** contains the post-deploy fixes below; these follow-up changes are not yet redeployed
+**Current deployed version:** v0.8 post-polish  
+**Currently deployed commit:** user reports GitHub `main` through `0eba0eb00a5acc6afcaeed509b5bf310f1a06222` deployed  
+**GitHub main:** newer late-game AI equipment polish and tests are committed after that deployment
 
 ## 1. Product / architecture invariants
 
@@ -59,18 +59,18 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 - Battlefield Mana bars remain hidden; Mana is still simulated and visible in Unit Info.
 - HP is the only persistent battlefield resource bar and is always green.
 - Ranged / magic attacks use projectile events already emitted by deterministic combat; AoE/global skills fan out visually to affected targets without changing damage logic.
-- Player and enemy pieces now have restrained team distinction: player green edge/glow cues and enemy red edge/glow/star cues while HP fill remains green for both.
+- Player and enemy pieces have restrained team distinction: player green-cyan edge/glow cues and enemy red-coral edge/glow/star cues while HP stays green for both.
 - Desktop Board-corner synergy totems remain hidden; mobile totems stay outside playable cells.
-- Mobile totems now map every trait to an explicit colored symbol using the trait name already present in their title attribute instead of relying on a first-letter placeholder.
+- Mobile totems map every trait to an explicit colored symbol using the trait name already present in their title attribute.
 
 ## 6. Replay / responsive presentation
 
-- Full-screen Replay remains independent of the normal in-game Board sizing rules.
-- Desktop Replay has explicit 8:6 geometry and viewport-based width/height guards so generic low-height Board rules cannot collapse it to a tiny center board.
+- Full-screen Replay remains independent of normal in-game Board sizing rules.
+- Desktop Replay has explicit 8:6 geometry plus viewport width/height and minimum-size guards so generic low-height Board rules cannot collapse it to a tiny center board.
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
 - `app/v08-fixes.css` is loaded after `v08-overrides.css` for narrowly scoped post-deploy corrections.
-- Site metadata description has been updated to v0.8.
+- Site metadata description is updated to v0.8.
 
 ## 7. Progression / Shop / economy
 
@@ -78,21 +78,23 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 - Shop tier odds and Shop roll logic share one authoritative table.
 - Adding units changes eligible members within cost tiers; tier probabilities are unchanged.
 - Full Bench purchase is allowed only if the purchase atomically resolves into a legal upgrade.
-- Merge overflow equipment is returned, not lost.
+- Merge overflow equipment is returned for the player.
 - Shop odds tests must derive tier members from `UNITS`, never hard-code old rosters.
 
 ## 8. Planning AI
 
 - AI uses the same economy, Shop odds, unit stats and level rules as the player.
-- Hard AI still values coherent frontline + damage + sustain formations and Assassin/Wild/Support/Guardian/Arcanist breakpoints.
-- Late Hard AI (level 7+) now evaluates synergy progress from its active fighting core rather than spare Bench units, preventing phantom Bench synergies from driving lineup changes.
+- Hard AI values coherent frontline + damage + sustain formations and Assassin/Wild/Support/Guardian/Arcanist breakpoints.
+- Late Hard AI (level 7+) evaluates synergy progress from its active fighting core rather than spare Bench units, preventing phantom Bench synergies from driving lineup changes.
 - Mature late-game formations use hysteresis: the current Board is retained unless a candidate composition is materially stronger; multi-unit swaps require a larger gain.
-- Selected late-game core units retain their valid existing positions when possible instead of being fully re-laid every planning round.
+- Selected late-game core units retain valid existing positions when possible instead of being fully re-laid every planning round.
 - Late Hard purchases are restricted to meaningful upgrades/core copies, active-synergy breakpoints, aligned 3-cost pieces, or 4/5-cost carries; low-value novelty purchases are suppressed.
-- 4/5-cost units receive additional late composition value.
-- Hard AI no longer spends most idle rerolls when no upgrade, breakpoint, or high-cost carry chase exists; pressure can still justify aggressive rolling.
+- Hard AI avoids wasteful idle rerolls when no upgrade, breakpoint or carry chase exists; pressure can still justify aggressive rolling.
 - Full-Bench selling remains legal and at normal refund, but late Hard AI only clears space for a strategically useful incoming unit.
-- AI must never receive hidden Gold, XP, Shop, item, stat or combat advantages.
+- New late-game progression fix: surviving AI commanders receive one deterministic neutral-cycle equipment reward every 5 completed rounds starting after round 5. This starts later than the player's possible round-1 reward, so early difficulty is not inflated.
+- AI chooses the legal recipient based on the item's attack/HP/armor/Mana profile, preferring deployed/upgraded pieces. Equipment value is now included in Board-selection and Bench-keep scoring.
+- Each AI unit remains capped at the normal two items; there is no hidden item-stat multiplier.
+- AI must never receive hidden Gold, XP, Shop, stat or combat advantages.
 
 ## 9. Authoritative modules
 
@@ -107,11 +109,11 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 
 ## 10. Validation / next step
 
-- Follow-up changes after deployed commit `2169fbc...` have been written to GitHub `main` but not deployed in this task.
-- No combat-engine logic changed; replay/team/totem changes are presentation-only.
-- Planning AI logic changed and should receive proportional verification before the next release: TypeScript/build, AI legality/regression tests, and representative late Hard-AI simulations (especially rounds / levels where the core is already mature).
-- Visual verification should specifically cover desktop Replay size, mobile trait totem symbols, player/enemy differentiation, and normal green HP bars.
-- Do not rerun broad deterministic combat stress tests solely for these changes unless a combat-engine regression appears.
+- Replay/team/totem corrections through deployed commit `0eba0eb...` are reported as live by the user.
+- New late-game AI equipment logic is in `app/ai-engine.ts`, with a targeted regression test added to `tests/ai-engine.test.ts`.
+- GitHub reports no configured CI status checks for the newest commit, and this connector session cannot execute the repository locally; the newest AI equipment change has therefore not been build/test executed here.
+- Before the next deployment, proportional verification should cover TypeScript/build, `tests/ai-engine.test.ts`, representative Hard-AI simulations through rounds 20–30, and a quick replay/team visual smoke at 1366×768 plus one mobile viewport.
+- No combat-engine logic changed; do not rerun broad deterministic combat stress tests solely for these changes unless a combat regression appears.
 
 ## 11. Next-task protocol
 
