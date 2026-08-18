@@ -40,6 +40,9 @@ const preferredRoles: Partial<Record<Trait, Trait[]>> = {
   Crystal: ["Ranger", "Guardian"],
   Void: ["Assassin", "Hacker"],
   Guardian: ["Guardian", "Support"],
+  Arcanist: ["Hacker", "Support"],
+  Assassin: ["Assassin", "Guardian"],
+  Support: ["Support", "Guardian"],
 };
 
 type Weights = {
@@ -66,7 +69,7 @@ const personalityWeights: Record<AIPersonality, Omit<Weights, "noise" | "candida
 const difficultyQuality: Record<AIDifficulty, Pick<Weights, "noise" | "candidates">> = {
   Easy: { noise: 4.5, candidates: 3 },
   Normal: { noise: 1.5, candidates: 5 },
-  Hard: { noise: .18, candidates: 5 },
+  Hard: { noise: .08, candidates: 5 },
 };
 
 function starCopies(star: 1 | 2 | 3) { return star === 1 ? 1 : star === 2 ? 3 : 9; }
@@ -141,6 +144,7 @@ function synergyValue(units: OwnedUnit[]) {
 }
 
 function unitPower(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * (unit.star === 1 ? 9 : unit.star === 2 ? 28 : 85); }
+function unitRefund(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * starCopies(unit.star); }
 
 function compositionValue(ai: AICommander, units: OwnedUnit[]) {
   const counts = uniqueTraitCounts(units);
@@ -159,9 +163,20 @@ function compositionValue(ai: AICommander, units: OwnedUnit[]) {
     const assassin = counts.get("Assassin") ?? 0;
     const wild = counts.get("Wild") ?? 0;
     const support = counts.get("Support") ?? 0;
-    if (assassin >= 2) score += 18 + (assassin >= 3 ? 16 : 0);
-    if (wild >= 2) score += 10 + (wild >= 3 ? 12 : 0);
-    if (support >= 2) score += 9 + (support >= 3 ? 10 : 0);
+    const guardian = counts.get("Guardian") ?? 0;
+    const arcanist = counts.get("Arcanist") ?? 0;
+    if (!frontline) score -= 44;
+    else if (frontline >= 2) score += 14;
+    if (damage < 2) score -= 22;
+    else if (damage >= 3) score += 9;
+    if (assassin >= 2) score += 24 + (assassin >= 3 ? 22 : 0);
+    if (wild >= 2) score += 14 + (wild >= 3 ? 16 : 0);
+    if (support >= 2) score += 14 + (support >= 3 ? 14 : 0);
+    if (guardian >= 2) score += 12;
+    if (arcanist >= 2) score += 15 + (arcanist >= 4 ? 20 : 0);
+    if (frontline >= 2 && support >= 2) score += 12;
+    if (assassin >= 2 && frontline >= 1) score += 8;
+    if (arcanist >= 2 && support >= 1) score += 7;
   }
   return score;
 }
@@ -172,37 +187,42 @@ function candidateValue(ai: AICommander, unitId: string, weights: Weights, rando
   const upgrade = copies % 3 === 2 || copies % 9 === 8 ? 12 : copies ? 4 : 0;
   const counts = uniqueTraitCounts(ai.units);
   const isNew = copies === 0;
+  let breakpoint = 0;
   const synergy = def.traits.reduce((sum, trait) => {
     const before = counts.get(trait) ?? 0;
     const after = before + (isNew ? 1 : 0);
+    if (activeTier(trait, after) > activeTier(trait, before)) breakpoint += ai.difficulty === "Hard" ? 12 : 4;
     return sum + Math.max(0, traitProgressValue(trait, after) - traitProgressValue(trait, before));
   }, 0);
   const focus = def.traits.includes(ai.focus) ? 8 : 0;
   const preferred = (preferredRoles[ai.focus] ?? []).includes(def.traits[1]) ? 5 : 0;
-  const hardCounter = ai.difficulty === "Hard" && def.traits[1] === "Assassin" ? 5 : 0;
-  const sustain = ai.difficulty === "Hard" && (def.traits.includes("Wild") || def.traits[1] === "Support") ? 2.5 : 0;
-  return def.cost * weights.power + upgrade * weights.upgrade + synergy * weights.synergy + (focus + preferred + hardCounter + sustain) * weights.focus + (random.next() - .5) * weights.noise;
+  const hardCounter = ai.difficulty === "Hard" && def.traits[1] === "Assassin" ? 7 : 0;
+  const sustain = ai.difficulty === "Hard" && (def.traits.includes("Wild") || def.traits[1] === "Support" || def.traits[1] === "Guardian") ? 4 : 0;
+  const magicPressure = ai.difficulty === "Hard" && def.traits.includes("Arcanist") ? 5 : 0;
+  const lateGame = ai.difficulty === "Hard" && ai.level >= 7 && def.cost >= 4 ? 7 : 0;
+  return def.cost * weights.power + upgrade * weights.upgrade + synergy * weights.synergy + (focus + preferred + hardCounter + sustain + magicPressure + breakpoint + lateGame) * weights.focus + (random.next() - .5) * weights.noise;
 }
 
 function effectiveWeights(ai: AICommander): Weights {
   const base = personalityWeights[ai.personality];
   const quality = difficultyQuality[ai.difficulty];
   const hard = ai.difficulty === "Hard";
+  const pressure = hard && (ai.health < 65 || ai.streak <= -2);
   if (ai.personality !== "Adaptive") return {
     ...base,
     ...quality,
-    economyFloor: Math.max(0, base.economyFloor - (hard ? 10 : 0)),
-    rerollBudget: base.rerollBudget + (hard ? 1 : 0),
-    levelBias: base.levelBias + (hard ? .22 : 0),
+    economyFloor: pressure ? 0 : hard ? Math.min(30, Math.max(0, base.economyFloor - 15)) : base.economyFloor,
+    rerollBudget: base.rerollBudget + (hard ? (pressure ? 4 : 2) : 0),
+    levelBias: base.levelBias + (hard ? (pressure ? .5 : .35) : 0),
   };
-  const pressure = ai.health < 45 || ai.streak <= -2;
+  const adaptivePressure = ai.health < 55 || ai.streak <= -2;
   return {
     ...base,
     ...quality,
-    power: pressure ? 1.65 : .85,
-    economyFloor: pressure ? 0 : hard ? 30 : 40,
-    rerollBudget: pressure ? (hard ? 4 : 3) : hard ? 2 : 1,
-    levelBias: pressure ? 1.7 : hard ? .92 : .7,
+    power: adaptivePressure ? 1.75 : hard ? 1.05 : .85,
+    economyFloor: adaptivePressure ? 0 : hard ? 25 : 40,
+    rerollBudget: adaptivePressure ? (hard ? 6 : 3) : hard ? 4 : 1,
+    levelBias: adaptivePressure ? 1.85 : hard ? 1.15 : .7,
   };
 }
 
@@ -257,17 +277,56 @@ function positionBoard(ai: AICommander, units: OwnedUnit[], level: number) {
   const front = ai.difficulty === "Hard" ? [19, 20, 18, 21, 17, 22, 16, 23] : [16, 18, 21, 23, 17, 22, 19, 20];
   const back = ai.difficulty === "Hard" ? [0, 7, 2, 5, 1, 6, 3, 4, 8, 15] : [0, 7, 2, 5, 1, 6, 3, 4, 8, 15];
   const middle = [9, 14, 10, 13, 11, 12];
-  const assassinLane = ai.difficulty === "Hard" ? [16, 23, 8, 15, 17, 22, ...middle] : [7, 0, 15, 8, ...middle, ...front];
+  const supportLane = ai.difficulty === "Hard" ? [9, 14, 10, 13, 2, 5, 1, 6, 11, 12] : back.concat(middle);
+  const assassinLane = ai.difficulty === "Hard" ? [16, 23, 17, 22, 8, 15, 18, 21, ...middle] : [7, 0, 15, 8, ...middle, ...front];
   const occupied = new Set<number>();
   const place = (unit: OwnedUnit) => {
     const cls = UNIT_MAP[unit.unitId].traits[1];
-    let lane = ai.difficulty === "Easy" ? middle.concat(front, back) : frontClasses.has(cls) ? front.concat(middle, back) : backClasses.has(cls) ? back.concat(middle, front) : cls === "Assassin" ? assassinLane.concat(front) : middle.concat(front, back);
+    let lane = ai.difficulty === "Easy"
+      ? middle.concat(front, back)
+      : frontClasses.has(cls)
+        ? front.concat(middle, back)
+        : cls === "Support"
+          ? supportLane.concat(back, front)
+          : backClasses.has(cls)
+            ? back.concat(middle, front)
+            : cls === "Assassin"
+              ? assassinLane.concat(front)
+              : middle.concat(front, back);
     if (ai.difficulty === "Normal" && cls === "Assassin") lane = [7, 0, 15, 8, ...middle, ...front];
     const position = lane.find((cell) => !occupied.has(cell)) ?? [...Array(24).keys()].find((cell) => !occupied.has(cell)) ?? 0;
     occupied.add(position);
     return { ...unit, position };
   };
   return units.map((unit) => selectedIds.has(unit.uid) ? place(unit) : { ...unit, position: null });
+}
+
+function benchKeepValue(ai: AICommander, unit: OwnedUnit) {
+  const def = UNIT_MAP[unit.unitId];
+  const copies = ownedBaseCopies(ai.units, unit.unitId);
+  const counts = uniqueTraitCounts(ai.units);
+  let score = unitPower(unit);
+  if (unit.star > 1) score += unit.star === 2 ? 40 : 120;
+  if (copies % 3 === 2 || copies % 9 === 8) score += 42;
+  if (def.traits.includes(ai.focus)) score += 14;
+  for (const trait of def.traits) {
+    const count = counts.get(trait) ?? 0;
+    const [first, second] = TRAIT_DETAILS[trait].thresholds;
+    if (count === first - 1 || count === second - 1) score += 12;
+    if (activeTier(trait, count)) score += 5;
+  }
+  return score;
+}
+
+function makeHardBenchRoom(ai: AICommander) {
+  if (ai.difficulty !== "Hard") return ai;
+  const bench = ai.units.filter((unit) => unit.position === null);
+  if (bench.length < GAME_RULES.benchSize) return ai;
+  const sellable = bench.filter((unit) => unit.star === 1 && unit.itemIds.length === 0)
+    .sort((a, b) => benchKeepValue(ai, a) - benchKeepValue(ai, b) || UNIT_MAP[a.unitId].cost - UNIT_MAP[b.unitId].cost || (a.uid < b.uid ? -1 : 1));
+  const worst = sellable[0];
+  if (!worst) return ai;
+  return { ...ai, gold: ai.gold + unitRefund(worst), units: ai.units.filter((unit) => unit.uid !== worst.uid) };
 }
 
 function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom) {
@@ -279,10 +338,18 @@ function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom) {
     const copies = ownedBaseCopies(ai.units, choice.unitId);
     const urgent = copies % 3 === 2 || copies % 9 === 8;
     if (ai.gold < def.cost || (!urgent && ai.gold - def.cost < protectedGold)) continue;
-    const combined = combineAIUnits([...ai.units, { uid: aiUid(random), unitId: choice.unitId, star: 1, position: null, itemIds: [] }], random);
-    const benchCount = Math.max(0, combined.units.length - ai.level);
-    if (benchCount > GAME_RULES.benchSize) continue;
-    return { ...ai, gold: ai.gold - def.cost, units: combined.units, shop: ai.shop.map((entry, index) => index === choice.index ? "" : entry), behavior: { ...ai.behavior, bought: ai.behavior.bought + 1 } };
+
+    let shopper = ai;
+    let combined = combineAIUnits([...shopper.units, { uid: aiUid(random), unitId: choice.unitId, star: 1, position: null, itemIds: [] }], random);
+    let benchCount = Math.max(0, combined.units.length - shopper.level);
+    if (benchCount > GAME_RULES.benchSize) {
+      shopper = makeHardBenchRoom(ai);
+      if (shopper === ai) continue;
+      combined = combineAIUnits([...shopper.units, { uid: aiUid(random), unitId: choice.unitId, star: 1, position: null, itemIds: [] }], random);
+      benchCount = Math.max(0, combined.units.length - shopper.level);
+    }
+    if (benchCount > GAME_RULES.benchSize || shopper.gold < def.cost) continue;
+    return { ...shopper, gold: shopper.gold - def.cost, units: combined.units, shop: shopper.shop.map((entry, index) => index === choice.index ? "" : entry), behavior: { ...shopper.behavior, bought: shopper.behavior.bought + 1 } };
   }
   return ai;
 }
@@ -308,10 +375,10 @@ export function planAI(ai: AICommander, round: number, random: SeededRandom, rec
   }
   const weights = effectiveWeights(next);
   const oldLevel = next.level;
-  const maxTraining = next.difficulty === "Hard" ? 2 : 1;
+  const maxTraining = next.difficulty === "Hard" ? (next.health < 55 || next.streak <= -2 ? 3 : 2) : 1;
   for (let training = 0; training < maxTraining; training += 1) {
     const needed = XP_TO_LEVEL[next.level] ?? Infinity;
-    const tempoWindow = round >= next.level * (next.difficulty === "Hard" ? 1.55 : 2);
+    const tempoWindow = round >= next.level * (next.difficulty === "Hard" ? 1.35 : 2);
     const benchPressure = next.difficulty === "Hard" && next.units.length > next.level && round >= 5;
     const shouldLevel = next.level < GAME_RULES.maxLevel && next.gold >= GAME_RULES.trainingCost && (next.xp + GAME_RULES.trainingXp >= needed || (tempoWindow && weights.levelBias > 1) || (benchPressure && weights.levelBias >= .9));
     if (!shouldLevel) break;
@@ -328,10 +395,10 @@ export function planAI(ai: AICommander, round: number, random: SeededRandom, rec
   let rerolls = 0;
   while (rerolls < weights.rerollBudget && next.gold >= GAME_RULES.rerollCost) {
     const floor = nextInterestFloor(next.gold, weights.economyFloor);
-    if (next.gold - GAME_RULES.rerollCost < floor && next.personality !== "Collector" && !(next.difficulty === "Hard" && next.health < 55)) break;
+    if (next.gold - GAME_RULES.rerollCost < floor && next.personality !== "Collector" && !(next.difficulty === "Hard" && next.health < 65)) break;
     const upgradeChance = next.units.some((unit) => ownedBaseCopies(next.units, unit.unitId) % 3 === 2);
     const synergyChase = shouldChaseSynergy(next);
-    if (!upgradeChance && !synergyChase && next.personality !== "Collector" && next.personality !== "Synergy Hunter" && random.next() > (next.difficulty === "Hard" ? .72 : .4)) break;
+    if (!upgradeChance && !synergyChase && next.personality !== "Collector" && next.personality !== "Synergy Hunter" && random.next() > (next.difficulty === "Hard" ? .84 : .4)) break;
     next = { ...next, gold: next.gold - GAME_RULES.rerollCost, shop: rollAIShop(next.level, next.units, random), behavior: { ...next.behavior, rerolls: next.behavior.rerolls + 1 } };
     for (let purchase = 0; purchase < GAME_RULES.shopSize; purchase += 1) {
       const bought = maybeBuy(next, weights, random); if (bought === next) break; next = bought;

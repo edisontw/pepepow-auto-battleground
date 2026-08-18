@@ -1,48 +1,51 @@
-/* v0.8 battle presentation polish.
-   Rendering-only: no combat timing, targeting, damage, economy, or AI rules change here. */
+/* v0.8 post-deploy readability, board-alignment, combat-VFX, and synergy presentation polish.
+   Presentation-only: no combat timing, damage, targeting, economy, or replay rules change here. */
 
-/* Use the new dimensional board art as a cropped playfield backdrop while the real 8x6 DOM grid
-   remains authoritative for placement, targeting, drag/drop, and combat rendering. */
+/* The board artwork is decorative. The authoritative 8x6 DOM cells are deliberately more visible
+   so the painted stones cannot be mistaken for legal placement coordinates. */
 .battle-board {
   isolation:isolate;
   background-color:#0a0d12;
   background-image:
-    linear-gradient(rgba(6,8,11,.10),rgba(6,8,11,.18)),
+    linear-gradient(rgba(6,8,11,.34),rgba(6,8,11,.46)),
     url('/battle-board-v08.webp');
-  background-size:160% 160%;
-  background-position:50% 46%;
+  background-size:cover;
+  background-position:center;
   background-repeat:no-repeat;
-  border-color:#8c6935;
+  border-color:#9b753b;
   box-shadow:
     0 30px 68px rgba(0,0,0,.76),
     0 0 0 4px #090b0d,
-    0 0 0 5px rgba(226,183,89,.28),
-    0 0 34px rgba(64,134,203,.12);
+    0 0 0 5px rgba(226,183,89,.30),
+    0 0 34px rgba(64,134,203,.14);
 }
 
 .battle-board:before {
   background:
-    radial-gradient(circle at 50% 52%,rgba(255,223,155,.055),transparent 42%),
-    linear-gradient(90deg,transparent 49.7%,rgba(255,226,154,.13) 50%,transparent 50.3%);
+    radial-gradient(circle at 50% 52%,rgba(255,223,155,.045),transparent 42%),
+    linear-gradient(90deg,transparent 49.72%,rgba(255,226,154,.15) 50%,transparent 50.28%);
   mix-blend-mode:screen;
-  opacity:.72;
+  opacity:.76;
 }
 
 .board-cell {
-  background:rgba(7,9,12,.055);
-  border-color:rgba(255,231,181,.13);
-  box-shadow:inset 0 0 0 1px rgba(3,5,7,.08);
+  background:linear-gradient(145deg,rgba(55,75,59,.31),rgba(6,10,8,.27));
+  border-color:rgba(255,235,191,.22);
+  box-shadow:
+    inset 1px 1px 0 rgba(255,255,255,.045),
+    inset -2px -3px 0 rgba(0,0,0,.18),
+    inset 0 0 0 1px rgba(3,5,7,.09);
 }
-.board-cell.enemy { background:rgba(77,29,42,.075); }
-.board-cell.friendly { background:rgba(25,89,72,.065); }
+.board-cell:nth-child(odd) { filter:brightness(1.035); }
+.board-cell.enemy { background:linear-gradient(145deg,rgba(86,40,54,.28),rgba(11,8,10,.31)); }
+.board-cell.friendly { background:linear-gradient(145deg,rgba(32,94,66,.34),rgba(5,12,9,.29)); }
 .board-cell.available {
-  box-shadow:inset 0 0 0 1px rgba(116,239,176,.34),0 0 9px rgba(92,218,153,.08);
+  box-shadow:inset 0 0 0 2px rgba(116,239,176,.42),0 0 11px rgba(92,218,153,.10);
 }
-.board-cell.available:hover { background:rgba(91,210,151,.12); }
-.tile-lines { opacity:.28; }
+.board-cell.available:hover { background:rgba(91,210,151,.18); }
+.tile-lines { display:none; }
 
-/* HP is the only persistent combat resource bar. Mana still exists in simulation and Unit Info,
-   but the battlefield bar is deliberately hidden for faster visual parsing on phones. */
+/* HP is always green. It no longer changes hue with remaining health. */
 .mana-track { display:none !important; }
 .hp-track {
   bottom:2.5%;
@@ -50,10 +53,60 @@
   right:6%;
   height:7px;
   border-radius:5px;
+  background:#07130b;
+  border-color:#020804;
   box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 2px 7px rgba(0,0,0,.72),0 0 6px rgba(0,0,0,.5);
 }
+.hp-track span {
+  background:linear-gradient(90deg,#27b85c,#62e88b 72%,#82f3a4) !important;
+  box-shadow:0 0 6px rgba(82,235,137,.52);
+}
 
-/* Slightly stronger combat motion/impact without adding simulation work or obscuring unit art. */
+/* Stronger ranged/magic readability. The simulation already emits one projectile event per target,
+   so area/global skills naturally fan out to multiple victims without adding simulation work. */
+.projectile-layer { z-index:17; }
+.projectile-layer>span {
+  height:5px;
+  filter:drop-shadow(0 0 7px currentColor) drop-shadow(0 0 3px currentColor);
+}
+.projectile-layer>span:before {
+  width:17px;
+  height:6px;
+  background:linear-gradient(90deg,transparent 0 8%,var(--vfx2,#fff) 42%,var(--vfx,currentColor) 100%);
+  box-shadow:0 0 10px var(--vfx,currentColor),0 0 4px var(--vfx2,#fff);
+  animation-duration:.24s;
+}
+.projectile-layer>span i {
+  inset:-7px;
+  border-top:2px solid color-mix(in srgb,var(--vfx,currentColor),transparent 35%);
+  opacity:.8;
+}
+.projectile-layer>span:after {
+  content:"";
+  position:absolute;
+  right:-4px;
+  top:50%;
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  border:2px solid var(--vfx,currentColor);
+  box-shadow:0 0 11px var(--vfx,currentColor),inset 0 0 7px var(--vfx2,#fff);
+  transform:translateY(-50%) scale(.25);
+  opacity:0;
+  animation:v08ProjectileImpact .30s ease-out forwards;
+  animation-delay:.13s;
+}
+.basic-projectile { --vfx:#f3d76d; --vfx2:#fff7c4; }
+.skill-vfx-rift-sniper { --vfx:#a56bff; --vfx2:#ff8af4; }
+.skill-vfx-rune-blaster { --vfx:#ff5fe0; --vfx2:#fff1ff; --rotate:28deg; }
+.skill-vfx-chrono-mage { --vfx:#6385ff; --vfx2:#d9e0ff; --rotate:90deg; }
+.skill-vfx-arcane-apprentice { --vfx:#73efad; --vfx2:#f0fff6; }
+.skill-vfx-aurora-titan:after,
+.skill-vfx-null-sovereign:after,
+.skill-vfx-rune-blaster:after,
+.skill-vfx-chrono-mage:after { width:18px; height:18px; border-width:2px; }
+
+/* Slightly stronger combat motion/impact without obscuring character art. */
 .unit-token.action-attack .unit-art { animation:v08Attack .18s cubic-bezier(.16,.84,.32,1); }
 .unit-token.action-cast .unit-art {
   animation:v08Cast .34s cubic-bezier(.18,.82,.24,1);
@@ -64,21 +117,103 @@
   animation:v08Hit .16s ease-out;
   filter:brightness(1.55) saturate(1.22) drop-shadow(0 0 7px rgba(255,236,175,.8));
 }
-
 .board-cell.impact:after {
   inset:2%;
-  border:1px solid rgba(255,235,166,.72);
-  background:
-    radial-gradient(circle,rgba(255,255,224,.92) 0 5%,rgba(255,188,75,.64) 13%,rgba(255,109,48,.20) 34%,transparent 67%);
-  box-shadow:0 0 18px rgba(255,173,66,.32);
+  border:1px solid rgba(255,235,166,.76);
+  background:radial-gradient(circle,rgba(255,255,224,.94) 0 5%,rgba(255,188,75,.68) 13%,rgba(255,109,48,.22) 34%,transparent 67%);
+  box-shadow:0 0 20px rgba(255,173,66,.36);
   animation:v08Impact .30s ease-out;
 }
-
 .combat-float {
   text-shadow:0 2px 3px #000,0 0 7px currentColor;
   filter:drop-shadow(0 1px 1px rgba(0,0,0,.85));
 }
 .combat-float.critical { transform:translateX(calc(-50% + var(--fx-index)*3px)) scale(1.08); }
+
+/* Synergy list inspired by the supplied blue/glass reference: clear circular sigils, stronger names,
+   and count/tier hierarchy. It stays outside the playable Board cells. */
+.left-panel .trait-list {
+  margin:7px;
+  padding:5px;
+  border:1px solid rgba(83,187,255,.33);
+  border-radius:12px;
+  background:linear-gradient(180deg,rgba(8,43,78,.92),rgba(5,24,47,.92));
+  box-shadow:inset 0 0 18px rgba(56,160,255,.06),0 8px 22px rgba(0,0,0,.24);
+}
+.left-panel .trait {
+  min-height:52px;
+  grid-template-columns:34px minmax(0,1fr) 30px;
+  border-bottom-color:rgba(125,207,255,.10);
+  opacity:.72;
+}
+.left-panel .trait.active {
+  opacity:1;
+  background:linear-gradient(90deg,rgba(41,143,211,.23),rgba(95,57,184,.08),transparent);
+}
+.left-panel .trait-gem {
+  width:31px;
+  height:31px;
+  transform:none;
+  border-radius:50%;
+  border:2px solid #5bc9ff;
+  color:#e9faff;
+  background:radial-gradient(circle at 35% 30%,#244d78,#07172a 70%);
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.45),0 0 10px rgba(70,187,255,.30);
+  font-size:12px;
+}
+.left-panel .trait.tier-1 .trait-gem { border-color:#7be7c2; box-shadow:0 0 11px rgba(94,233,185,.34),inset 0 0 0 2px rgba(0,0,0,.4); }
+.left-panel .trait.tier-2 .trait-gem { border-color:#dca0ff; color:#fff1ff; box-shadow:0 0 13px rgba(190,103,255,.42),inset 0 0 0 2px rgba(0,0,0,.4); }
+.left-panel .trait>strong { color:#d8ecff; }
+.left-panel .trait.active>strong { color:#fff1a1; }
+
+/* Desktop readability pass. The previous compact pass preserved viewport fit but pushed many labels
+   below practical reading size; these bumps keep the same layout dimensions and allow existing scroll areas. */
+@media (min-width:901px) {
+  .brand-lockup small { font-size:11px; }
+  .eyebrow { font-size:12px; }
+  .feature-rail span { font-size:11px; }
+  .primary-action,.secondary-action { font-size:13px; }
+  .text-action { font-size:11px; }
+  .difficulty-picker>span,.difficulty-picker button { font-size:10px; }
+  .level-zero { font-size:10px; }
+
+  .mini-brand span { font-size:13px; }.mini-brand b { font-size:10px; }
+  .round-label small,.resource-row small { font-size:9.5px; }
+  .round-label span { font-size:10.5px; }
+  .resource-row b { font-size:18px; }.resource-row span { font-size:9px; }
+  .panel-title,.panel-title b { font-size:11px; }
+  .trait b { font-size:12px; }.trait small { font-size:9px; line-height:1.25; }.trait>strong { font-size:15px; }
+  .items-title { font-size:10px; }.items-title button { font-size:8px; }
+  .item-grid button small { font-size:9px; }
+  .item-explainer b { font-size:10px; }.item-explainer span { font-size:9px; }.item-explainer small { font-size:8px; }
+  .empty-copy,.power-meter { font-size:10px; }
+  .phase-banner { font-size:10.5px; }
+  .notice-bar { font-size:10px; }
+  .commander b { font-size:11px; }.commander small { font-size:9px; }.commander>strong { font-size:12px; }
+  .economy-card>div,.streak-card { font-size:10px; }.economy-card small { font-size:9px; }
+  .shop-odds { font-size:8.5px; }
+  .shop-controls b { font-size:9.5px; }.shop-controls small { font-size:8px; }
+  .shop-info>b { font-size:11px; }.shop-info small { font-size:8px; }.shop-info p { font-size:8px; line-height:1.25; }
+  .shop-card>strong { font-size:10px; }.shop-card>mark { font-size:8px; }
+  .battle-button b { font-size:11px; }.battle-button small { font-size:8.5px; }
+
+  .guide-grid span { font-size:12px; }.guide-grid b { font-size:15px; }.guide-grid p { font-size:12px; line-height:1.65; }
+  .roster-grid b { font-size:11px; }.roster-grid small { font-size:9px; }.roster-grid p { font-size:9px; line-height:1.4; }
+  .skill-copy,.targeting-copy { font-size:11px; line-height:1.55; }
+  .skill-copy strong { font-size:12px; }
+  .detail-heading small { font-size:9px; }.detail-heading b { font-size:9px; }
+  .detail-stats small { font-size:8px; }.detail-stats b { font-size:12px; }
+  .detail-traits b { font-size:9px; }.detail-traits small { font-size:8px; }
+  .detail-gear { font-size:9px; }.detail-gear>small,.detail-buffs>small { font-size:8px; }
+  .detail-buffs span { font-size:9px; }
+  .archive-tabs button { font-size:9px; }
+  .trait-archive-title small { font-size:9px; }.trait-archive article>p { font-size:10px; }
+  .tier-row span { font-size:9px; }.members { font-size:8px; }
+  .gear-archive small { font-size:9px; }.archive-note { font-size:10px; }
+  .round-history h3 { font-size:9px; }.round-history b { font-size:11px; }.round-history small,.round-history strong { font-size:9px; }
+  .analysis-hero small,.analysis-hero .verified { font-size:9px; }
+  .damage-summary small,.diagnostics-strip small { font-size:8px; }
+}
 
 @keyframes v08Attack {
   0% { transform:translateX(-4%) translateY(1%) rotate(-3deg) scale(.98); }
@@ -107,15 +242,48 @@
   55% { opacity:.92; transform:scale(1); }
   100% { opacity:0; transform:scale(1.24); }
 }
+@keyframes v08ProjectileImpact {
+  0% { opacity:0; transform:translateY(-50%) scale(.2); }
+  42% { opacity:.95; transform:translateY(-50%) scale(1); }
+  100% { opacity:0; transform:translateY(-50%) scale(1.7); }
+}
+
+@media (max-width:900px) {
+  .synergy-totems {
+    top:-30px;
+    right:4px;
+    gap:3px;
+    padding:3px 5px;
+    border:1px solid rgba(72,183,255,.35);
+    border-radius:9px;
+    background:linear-gradient(180deg,rgba(7,48,88,.94),rgba(5,25,48,.94));
+    box-shadow:0 5px 14px rgba(0,0,0,.35),inset 0 0 10px rgba(74,174,255,.08);
+  }
+  .synergy-sigil {
+    border-color:#65ccff;
+    background:radial-gradient(circle at 35% 30%,#235179,#071727 70%);
+  }
+}
 
 @media (max-width:600px) {
   .battle-board {
-    /* Keep the visual center on the playable stone field rather than the decorative outer scenery. */
-    background-size:168% 168%;
-    background-position:50% 45%;
+    background-size:cover;
+    background-position:center;
     box-shadow:0 20px 38px rgba(0,0,0,.72),0 0 0 3px #090b0d,0 0 0 4px rgba(226,183,89,.22);
   }
+  .board-cell { border-color:rgba(255,235,191,.18); }
   .hp-track { left:5%; right:5%; height:6px; bottom:2%; }
   .unit-token.action-cast .unit-art { filter:brightness(1.12) saturate(1.1) drop-shadow(0 0 6px var(--unit)); }
   .board-cell.impact:after { box-shadow:0 0 10px rgba(255,173,66,.25); }
+
+  /* Mobile previously hid projectile VFX entirely. Keep a lighter version so ranged/magic attacks remain legible. */
+  .projectile-layer { display:block !important; }
+  .projectile-layer>span { height:3px; filter:drop-shadow(0 0 4px currentColor); }
+  .projectile-layer>span:before { width:12px; height:4px; box-shadow:0 0 6px var(--vfx,currentColor); }
+  .projectile-layer>span i { display:none; }
+  .projectile-layer>span:after { width:8px; height:8px; border-width:1px; box-shadow:0 0 6px var(--vfx,currentColor); }
+  .skill-vfx-aurora-titan:after,
+  .skill-vfx-null-sovereign:after,
+  .skill-vfx-rune-blaster:after,
+  .skill-vfx-chrono-mage:after { width:11px; height:11px; }
 }

@@ -4,8 +4,8 @@
 
 **Last updated:** 2026-08-18  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
-**Current deployed version:** v0.7  
-**GitHub main:** v0.8 candidate; not yet deployed
+**Current deployed version:** v0.8  
+**GitHub main:** post-v0.8 polish candidate; current GitHub changes described below are not yet redeployed
 
 ## 1. Product / architecture invariants
 
@@ -13,7 +13,7 @@
 - Simulation is authoritative and deterministic; rendering/animation must not change battle results.
 - Identical starting state + seed must reproduce the same battle.
 - AI difficulty comes from decision quality, never hidden Gold/XP/Shop/stat advantages.
-- Units may have additive traits beyond their primary faction (`traits[0]`) and combat role (`traits[1]`).
+- Units may have additive traits beyond primary faction (`traits[0]`) and combat role (`traits[1]`).
 - UI gameplay values should come from authoritative gameplay/config modules, not duplicate tables.
 - Avoid heavyweight true-3D rendering; use polished 2.5D/CSS/image presentation.
 
@@ -26,7 +26,7 @@
 - Invalid drop returns to origin; Board → Bench never sells.
 - Preferred drop resolution: Board → Bench → explicit Sell → return to origin.
 
-## 3. Current combat baseline
+## 3. Combat baseline
 
 - Combat engine: `combat-balance-0.8.0`; replay format v4.
 - Targeting: nearest reachable enemy with sticky targets and BFS pathing.
@@ -35,67 +35,63 @@
 - Assassin 2/3: +25% / +45% damage to Rangers plus existing critical mechanic.
 - Wild 2/3: all allies +15% / +32% max HP.
 - Support 2/3: healing +40% / +80%.
+- Arcanist 2/4: +25/+45 starting Mana and +15%/+30% skill effect.
 
 Regression risks: target flicker, living-unit overlap, corpse obstruction, stuck movement, duplicate animation damage, frame-rate-dependent results, replay incompatibility.
 
-## 4. Arcanist
+## 4. v0.8 roster
 
-Arcanist remains a two-tier additive trait for v0.8:
+Roster: 27 units.
 
-- 2 Arcanist: +25 starting Mana, skills +15%.
-- 4 Arcanist: +45 starting Mana, skills +30%.
-- Skill power applies to compatible damage/healing effects through `CombatUnit.skillPower`.
-- Existing Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
-- Null Sovereign and Aurora Titan intentionally remain non-Arcanist.
-- A 6-Arcanist capstone is deferred until the expanded roster is observed in play.
+Newest Arcanists:
 
-## 5. v0.8 roster additions
+- **Arcane Apprentice** — 1 Gold — Machine / Support / Arcanist — `Mana Ward`.
+- **Rune Blaster** — 2 Gold — Crystal / Hacker / Arcanist — radius-2 `Rune Nova` AoE.
+- **Chrono Mage** — 4 Gold — Underground / Hacker / Arcanist — area damage + 1-tick `Time Lock` stun.
 
-Roster expands from 24 → 27 units:
+Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker. Null Sovereign and Aurora Titan remain non-Arcanist. A 6-Arcanist capstone remains deferred.
 
-- **Arcane Apprentice** — 1 Gold — Machine / Support / Arcanist — `Mana Ward`: heals two lowest-health allies and grants Mana.
-- **Rune Blaster** — 2 Gold — Crystal / Hacker / Arcanist — `Rune Nova`: radius-2 AoE magic damage.
-- **Chrono Mage** — 4 Gold — Underground / Hacker / Arcanist — `Time Lock`: area damage + 1-tick stun.
+## 5. Board / combat presentation
 
-All three intentionally avoid Ranger and Void. The 5-Gold pool remains Aurora Titan + Null Sovereign.
+- Board asset: `public/battle-board-v08.webp`.
+- Authoritative placement is the 8×6 DOM grid; decorative painted tiles must never imply different legal coordinates.
+- Post-v0.8 CSS de-emphasizes painted tile lines and strengthens the real DOM cell surfaces/borders so pieces visually sit on the legal cells.
+- Battlefield Mana bars remain hidden; Mana is still simulated and visible in Unit Info.
+- HP is the only persistent battlefield resource bar and is now always green rather than red/yellow/green by percentage.
+- Existing projectile events are rendered more clearly for ranged and magic attacks. Area/global skills already emit one projectile per affected target, so multi-target fan-out is presentation-only.
+- Mobile no longer suppresses projectile VFX entirely; it uses a lighter projectile treatment.
+- Attack/cast/hit/impact motion remains rendering-only and does not change combat timing.
+- Desktop Board-corner synergy totems remain hidden; mobile indicators remain outside playable Board cells.
+- Synergy list / mobile indicator styling now uses a clearer blue/glass presentation inspired by the current visual reference.
 
-Current final portraits:
+## 6. Readability / responsive presentation
 
-- `public/units/arcane-apprentice.webp`
-- `public/units/rune-blaster.webp`
-- `public/units/chrono-mage.webp`
+- Desktop small labels and numeric text receive a moderate readability increase without changing major panel dimensions.
+- Guide, Archive, Unit Info, synergy, Shop and other explanatory text receive larger desktop sizes.
+- Existing scroll areas remain the overflow mechanism where more text no longer fits.
+- Desktop targets: 1920×1080, 1440×900, 1366×768.
+- Mobile targets: 390×844, 375×812, 360×800, 412×915.
+- v0.7 presentation still applies: 2★/3★ decorative glow removed and all five Shop cards fit supported phone widths.
 
-They are visually separated by palette for Board readability: green, pink/magenta, and dark blue/purple respectively.
-
-## 6. v0.8 battle presentation
-
-Latest rendering-only polish on GitHub `main`:
-
-- New dimensional board asset: `public/battle-board-v08.webp`.
-- `app/v08-overrides.css` crops the new board art behind the authoritative 8×6 DOM grid; DOM cells remain responsible for placement/input/combat positioning.
-- Battlefield Mana bars are hidden for cleaner reading; Mana still exists in simulation and detailed stats.
-- HP is the only persistent battlefield resource bar and is slightly stronger/readable.
-- Attack, cast, hit, impact and floating-number presentation are slightly punchier without changing combat timing or results.
-- Mobile reduces glow/filter intensity to preserve character clarity.
-- v0.7 presentation remains: desktop Board-corner synergy totems hidden; mobile indicators outside playable Board cells; 2★/3★ decorative glow removed; five Shop cards fit supported phone widths.
-
-Responsive targets:
-
-- Desktop: 1920×1080, 1440×900, 1366×768.
-- Mobile: 390×844, 375×812, 360×800, 412×915.
-
-## 7. Progression / Shop / AI
+## 7. Progression / Shop / economy
 
 - Passive XP: `min(8, 1 + floor((round - 1) / 2))`.
 - Shop tier odds and Shop roll logic share one authoritative table.
-- Adding units expands eligible units within cost tiers; tier probabilities themselves are unchanged.
+- Adding units changes eligible members within cost tiers; tier probabilities are unchanged.
 - Full Bench purchase is allowed only if the purchase atomically resolves into a legal upgrade.
 - Merge overflow equipment is returned, not lost.
 - Shop odds tests must derive tier members from `UNITS`, never hard-code old rosters.
-- AI Shop generation and synergy evaluation iterate `UNITS` / `TRAIT_DETAILS`, so v0.8 units enter AI logic naturally.
-- Hard AI uses composition-aware legal Board selection, low-noise candidate scoring, synergy progress, counter-pressure and sustain evaluation while obeying the same rules/resources as player.
 
-## 8. Authoritative modules
+## 8. Planning AI
+
+- AI uses the same economy, Shop odds, unit stats and level rules as the player.
+- Hard AI now has lower decision noise, stronger preference for coherent frontline + damage + sustain formations, and additional value for Assassin/Wild/Support/Guardian/Arcanist breakpoints.
+- Hard AI is more willing to level and reroll under pressure (low HP or loss streak) instead of over-protecting Interest.
+- Hard support units favor protected middle/back positions; Assassin lanes remain edge-biased for backline access.
+- Hard AI can sell one low-value 1★ unequipped Bench unit at the normal refund when a full Bench blocks a strategically useful purchase. Upgrade-near, focused, high-cost and active-synergy pieces receive higher keep scores.
+- AI must still never receive hidden Gold, XP, Shop, item, stat or combat advantages.
+
+## 9. Authoritative modules
 
 - Main UI / input / Board / Bench / Shop / archive / audio: `app/game.tsx`
 - Base visuals: `app/globals.css`
@@ -106,16 +102,14 @@ Responsive targets:
 - Planning AI: `app/ai-engine.ts`
 - Tests: `tests/`
 
-## 9. Validation state / next step
+## 10. Validation / next step
 
-- v0.8 Next.js production build previously passed before the latest rendering-only CSS change.
-- v0.8 TypeScript regression suite previously passed after roster/skill implementation.
-- Latest Board/HP/effects change is CSS/import-only; no combat-engine logic changed, so broad battle simulations are not warranted.
-- No rendered viewport QA has yet been performed for the new board asset.
-- Before Sites deployment, only proportional visual QA is needed: confirm board crop/alignment, character readability, HP-only battlefield display, and 3 new portraits on representative desktop/mobile widths.
-- GitHub `main` v0.8 is not yet deployed to Sites.
+- The deployed v0.8 site predates the current post-v0.8 GitHub polish in `app/v08-overrides.css` and `app/ai-engine.ts`.
+- Current changes have not yet been built, rendered, battle-simulated, or redeployed in this task.
+- Before deployment, proportional verification should cover: TypeScript/build, AI legality/regression tests, representative Hard-AI simulations, desktop text fit, Board/grid visual alignment, green HP bars, projectile visibility, and representative desktop/mobile screenshots.
+- No combat-engine logic changed, so deterministic combat balance stress tests are not required solely for the VFX/readability changes; AI simulations are warranted because planning logic changed.
 
-## 10. Next-task protocol
+## 11. Next-task protocol
 
 1. Read this file first.
 2. Inspect only directly relevant modules and dependencies.
