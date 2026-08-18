@@ -2,10 +2,10 @@
 
 > Canonical context for future ChatGPT Sites / Codex work. Read this file first; do not rescan the whole project unless the task genuinely requires it.
 
-**Last updated:** 2026-08-17  
+**Last updated:** 2026-08-18  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
-**Current deployed version:** v0.6  
-**GitHub main:** v0.7 candidate; contains post-v0.6 UI/AI fixes plus combat-balance changes not yet verified as deployed
+**Current deployed version:** v0.7  
+**GitHub main:** v0.8 candidate; three new original Arcanist units are implemented and verified but not yet deployed
 
 ## 1. Product direction
 
@@ -17,7 +17,7 @@
 
 ## 2. Current release state
 
-v0.6 is the active deployed release. GitHub `main` is a v0.7 candidate containing responsive/AI fixes, refreshed unit art, and the combat-balance pass below. Do not describe v0.7 as deployed until Sites deployment is completed and verified.
+v0.7 is the active Sites release. GitHub `main` is now the v0.8 candidate. v0.8 expands the roster from 24 to 27 units with three genuinely new Arcanist characters and dedicated combat behavior. Do not describe v0.8 as deployed until Sites deployment is explicitly completed.
 
 ## 3. Architecture invariants
 
@@ -47,69 +47,88 @@ Preferred drop resolution: valid Board → valid Bench → explicit Sell Zone �
 - Default targeting uses the nearest valid/reachable enemy with sticky targets and BFS pathing.
 - Guardian Taunt can override normal targeting.
 - Assassin first acquisition prioritizes the enemy backline; within the same backline depth it prioritizes Rangers.
-- Active Assassin 2/3 adds +25% / +45% damage against Rangers on both basic attacks and skills. Existing 25% / 42% critical chance at 175% damage remains.
-- Combat engine/replay version for this pass: `combat-balance-0.7.0`, replay v4.
+- Assassin 2/3 adds +25% / +45% damage against Rangers on both basic attacks and skills. Existing 25% / 42% critical chance at 175% damage remains.
+- Current combat engine: `combat-balance-0.8.0`; replay format remains v4.
 - Historical Battle Archive inspection must not modify deterministic combat or replay behavior.
 
 Regression risks: target flicker, living-unit overlap, corpse obstruction, stuck movement, duplicate animation damage, frame-rate-dependent results, and old replay display compatibility.
 
-## 5. v0.7 combat balance
+## 5. Arcanist and v0.7 balance baseline
 
-### Arcanist magic archetype
+### Arcanist
 
-- Additive trait: `Arcanist`, thresholds 2/4.
-- Arcanist 2: Arcanists start with +25 Mana and their skills are 15% stronger.
-- Arcanist 4: Arcanists start with +45 Mana and their skills are 30% stronger.
-- Skill-power amplification applies to damaging skills and healing skills; the generic combat field is `CombatUnit.skillPower`.
-- Current Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
-- Null Sovereign and Aurora Titan intentionally do not receive Arcanist, avoiding a direct buff to the previously dominant Ranger/Void legendary core.
+- Additive trait: `Arcanist`, thresholds remain 2/4 for v0.8.
+- Arcanist 2: Arcanists start with +25 Mana and skills are 15% stronger.
+- Arcanist 4: Arcanists start with +45 Mana and skills are 30% stronger.
+- Skill-power amplification applies to damaging and healing skills through `CombatUnit.skillPower`.
+- v0.7 Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
+- Null Sovereign and Aurora Titan intentionally do not receive Arcanist.
+- A possible 6-Arcanist capstone is deliberately deferred; the current trait/UI/AI model is two-tier and should not be broadened until the 27-unit pool is observed in play.
 
-### Wild
+### Wild / Support / Assassin
 
-- Wild thresholds are 2/3; the previous second threshold of 4 was unreachable with only three unique Wild units.
-- Wild 2/3 grants all allies +15% / +32% maximum Health.
+- Wild thresholds: 2/3; all allies gain +15% / +32% maximum Health.
+- Support thresholds: 2/3; healing amplification +40% / +80%.
+- Assassin 2/3: Ranger counter damage +25% / +45% in addition to existing critical mechanics.
 
-### Support
+## 6. v0.8 — three new original Arcanists
 
-- Support thresholds remain 2/3.
-- Support healing amplification is +40% / +80%.
-- Arcanist Support units can additionally benefit from Arcanist skill power, creating a deliberate sustain/magic composition.
+### Arcane Apprentice
 
-### Assassin vs Ranger
+- Cost: 1 Gold.
+- Traits: Machine / Support / Arcanist.
+- Stats: 500 HP, 36 Attack, 12 Armor, Range 3.
+- Skill: `Mana Ward`.
+- Effect: heals the two lowest-health allies for 150% Attack and grants them 20 Mana. Arcanist skill power scales both the spell's healing and Mana grant.
+- Purpose: inexpensive magic/sustain bridge without Ranger or Void.
 
-- Assassin remains a backline role but now explicitly hunts Rangers within the same backline depth.
-- Assassin 2/3 deals +25% / +45% damage to Rangers in addition to its existing critical mechanic.
-- This is a universal combat rule for player and AI, not an AI-only bonus.
+### Rune Blaster
 
-## 6. Progression, Shop, and economy
+- Cost: 2 Gold.
+- Traits: Crystal / Hacker / Arcanist.
+- Stats: 570 HP, 68 Attack, 12 Armor, Range 4.
+- Skill: `Rune Nova`.
+- Effect: detonates across a 2-cell radius for 145% Attack damage, scaled by Arcanist skill power.
+- Purpose: accessible magic AoE rather than another Ranger carry.
+
+### Chrono Mage
+
+- Cost: 4 Gold.
+- Traits: Underground / Hacker / Arcanist.
+- Stats: 790 HP, 88 Attack, 20 Armor, Range 3.
+- Skill: `Time Lock`.
+- Effect: deals 135% Attack damage around the locked target and stuns surviving targets for 1 tick, scaled by Arcanist skill power.
+- Purpose: late-game magic control without adding another 5-Gold legendary.
+
+### Pool impact
+
+- Total roster: 27 units, up from 24.
+- Added costs: one 1-Gold, one 2-Gold, one 4-Gold.
+- 5-Gold pool remains Aurora Titan + Null Sovereign only.
+- All three new units deliberately avoid `Ranger` and `Void`, reducing the risk of strengthening the previously dominant Ranger + Void legendary core.
+
+## 7. Progression, Shop, and economy
 
 - Passive XP curve: `min(8, 1 + floor((round - 1) / 2))`.
-- Shop tier-odds display and Shop roll logic share the same authoritative table.
+- Shop tier odds and Shop roll logic share the same authoritative table.
+- Adding units expands the eligible unit pool within a cost tier; tier probability itself does not change.
 - Full Bench can accept a purchase only when it atomically resolves into a valid upgrade.
 - Merge overflow equipment is returned rather than lost.
-- Shop OWNED / UPGRADE reminders, explicit Sell, and 1★ / 2★ / 3★ upgrades are active behavior.
+- Shop OWNED / UPGRADE reminders, explicit Sell, and 1★ / 2★ / 3★ upgrades remain active behavior.
+- Shop-odds regression fixtures must derive tier members from `UNITS`; do not hard-code a stale list of unit IDs.
 
-Authoritative values live in code; do not copy or invent economy numbers in this file.
+## 8. Buffs, synergies, equipment, and presentation
 
-## 7. Buffs, synergies, and equipment
-
-- Display numerical gameplay values whenever the underlying effect has one.
-- Current Faction/Class/Trait rows show count, active tier/threshold, and actual active value.
-- Values are derived from `TRAIT_DETAILS` and combat snapshots; do not maintain a second UI-only value table.
-- Trait counting uses every trait on a unit, including additive third traits such as Arcanist.
-- Mobile exposes Synergies and Equipment through compact expandable controls that do not permanently consume Board space.
-
-## 8. Unit presentation / responsive layout
-
-- Shop, Unit Info, Battle Archive, and identification views retain unit names; battlefield pieces remain art-forward with no name/pedestal.
+- Numerical gameplay effects displayed in UI must be derived from `TRAIT_DETAILS` / combat snapshots.
+- Trait counting includes all additive traits such as Arcanist.
+- Mobile exposes Synergies and Equipment through compact expandable controls.
+- Shop, Unit Info, Battle Archive, and identification views retain unit names; battlefield pieces are art-forward with no name/pedestal.
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
-- `app/v06-overrides.css` contains the v0.6/post-v0.6 responsive layer; `app/v07-overrides.css` is loaded after it for the latest targeted v0.7 fixes.
-- Current post-v0.6 fixes on main: horizontal low-height desktop Shop cards, larger key HUD/Shop/status text, and corrected mobile Board/Bench separation.
-- v0.7 candidate hides the Board-corner synergy totems on desktop. On mobile, the same compact progress indicators are positioned above the Board boundary so they no longer cover playable cells.
-- v0.7 candidate refreshes the WebP portraits for Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, and Storm Hacker in `public/units/`.
-- v0.7 candidate removes the decorative `star-evolution` glow/frame for both 2★ and 3★ units while keeping the normal `★★ / ★★★` star label, preventing upgraded-unit effects from obscuring portraits on phones.
-- Mobile Shop now uses five equal shrinkable columns instead of fixed 78px cards, so all five Shop choices fit simultaneously at the 360/375/390px target widths without horizontal scrolling.
+- `app/v06-overrides.css` and `app/v07-overrides.css` remain the responsive override layers.
+- v0.7 deployed presentation includes: desktop Board-corner synergy totems hidden; mobile indicators moved outside playable Board cells; 2★/3★ decorative glow removed while star labels remain; five mobile Shop cards fit simultaneously.
+- v0.8 WebPs: `public/units/arcane-apprentice.webp`, `public/units/rune-blaster.webp`, `public/units/chrono-mage.webp`.
+- These assets are 320×320 WebP images. Reproducible source: `scripts/generate-v08-unit-art.py`.
 
 ## 9. Planning AI
 
@@ -117,9 +136,10 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 - Easy primarily uses raw unit power and intentionally noisy evaluation.
 - Normal uses composition-aware greedy Board selection.
 - Hard uses low-noise candidate evaluation plus exhaustive legal Board-combination scoring, actual trait-threshold progress, focus/role pairings, front-line/damage coverage, and stronger leveling/reroll decisions.
-- Because AI synergy evaluation iterates authoritative unit traits/`TRAIT_DETAILS`, Arcanist and the Wild 2/3 threshold are automatically considered without hidden bonuses.
-- Hard additionally values Assassin counter-pressure and Wild/Support sustain when they improve a legal composition.
-- The Hard-specific Wild second-tier heuristic is aligned to `wild >= 3`; the stale unreachable `wild >= 4` check was removed during the v0.7 review.
+- AI Shop generation iterates `UNITS`, so all three v0.8 units enter AI shops automatically at the same legal cost-tier odds as the player.
+- AI synergy evaluation iterates authoritative unit traits and `TRAIT_DETAILS`, so the new Arcanists are evaluated naturally without hidden bonuses.
+- Hard additionally values Assassin counter-pressure and Wild/Support sustain when useful.
+- Hard Wild second tier uses the reachable `wild >= 3` threshold.
 - AI uses the same Gold, XP, Shop odds, Bench cap, unit stats, traits, and combat rules as the player.
 
 ## 10. Battle statistics / Archive / audio
@@ -133,39 +153,41 @@ Authoritative values live in code; do not copy or invent economy numbers in this
 
 - App/game UI, input, Board/Bench/Sell, Unit Info, archive, audio: `app/game.tsx`
 - Base responsive layout and unit visuals: `app/globals.css`
-- v0.6/post-v0.6 targeted responsive overrides: `app/v06-overrides.css`
-- Latest v0.7 targeted presentation overrides: `app/v07-overrides.css`
+- Responsive overrides: `app/v06-overrides.css`, `app/v07-overrides.css`
 - Deterministic combat and combat snapshots: `app/battle-engine.ts`
 - Units, items, traits, and `TRAIT_DETAILS`: `app/game-data.ts`
 - Economy, progression, Shop odds, and game rules: `app/game-rules.ts`
 - Planning AI: `app/ai-engine.ts`
 - Combat regressions: `tests/battle-engine.test.ts`
 - AI regressions: `tests/ai-engine.test.ts`
+- Game-rule regressions: `tests/game-rules.test.ts`
 - Targeted UI contract tests: `tests/ui-contract.test.ts`
+- v0.8 art source: `scripts/generate-v08-unit-art.py`
 
 ## 12. Validation state
 
-- v0.6 standard Node 22 validation passed before its deployment.
-- v0.7 combat tests in source cover Assassin Ranger-target preference, Arcanist tier-two starting Mana/skill power, reachable Wild tier two, deterministic battle reproduction, BFS, sticky/forced targeting, and empty-side resolution.
-- This targeted GitHub review confirmed the authoritative v0.7 trait/combat code and corrected the stale Hard-AI Wild `>=4` second-tier heuristic to `>=3`.
-- The latest 2★/3★ visibility and five-card mobile Shop fixes are CSS-only; source-level rules are committed, but rendered viewport verification remains pending.
-- Full `npm test`, broad battle simulation, and rendered viewport verification have not been executed from the GitHub connector environment; run them before declaring v0.7 deployed.
+- v0.7 is deployed to Sites per the completed deployment pass on 2026-08-18.
+- v0.8 Next.js production build: PASS.
+- v0.8 TypeScript regression suite (`node --import tsx --test tests/*.test.ts`): PASS.
+- New v0.8 coverage verifies the three original units, no Ranger/Void traits on them, Arcanist tier-two behavior, Mana Ward Mana grant, Rune Nova radius-2 damage, Time Lock stun, deterministic replay, Shop odds, AI/game rules, and UI contracts.
+- Initial targeted regression run exposed one stale test fixture that hard-coded the pre-v0.8 1-Gold roster. The test was corrected to derive all 1-Gold IDs from `UNITS`; the rerun passed.
+- The legacy combined `npm test` command still includes `tests/rendered-html.test.mjs`, which expects the Sites/Vite `dist/server/index.js` artifact after a `next build`; this existing artifact mismatch is separate from v0.8. Do not report the combined command as PASS unless that test workflow is reconciled.
+- No broad battle-simulation stress run or rendered viewport QA was performed for v0.8 in this implementation pass.
 
 ## 13. Known issues / next validation
 
-- GitHub `main` v0.7 candidate has not yet been deployed to ChatGPT Sites.
-- Run full build/tests before deployment because combat simulation changed.
-- Run deterministic combat regression/stress proportional to the simulation change.
-- Recheck desktop 1440×900 / 1366×768 and mobile 390×844 / 375×812 / 360×800 after deployment.
-- Specifically verify that 2★/3★ portraits remain unobscured and all five Shop cards are visible simultaneously on 390/375/360px mobile widths.
-- Repeat physical iPhone Safari long-press smoke when convenient.
+- GitHub `main` v0.8 candidate has not yet been deployed to ChatGPT Sites.
+- Before/with v0.8 deployment, do only proportional validation unless new problems are reported: confirm the three new portraits render in Shop/Board/Unit Info and smoke-test their three skills.
+- Observe whether expanding the roster from 24 to 27 makes 2★/3★ upgrades noticeably too slow before changing Shop odds or copy-pool behavior.
+- Observe Arcanist 2/4 performance before introducing a 6-unit capstone.
+- A broad balance simulation is optional follow-up, not required for the source implementation itself.
 
 ## 14. Next-task protocol
 
 1. Read this file first.
 2. Inspect only directly relevant modules and immediate dependencies.
 3. Preserve deterministic combat and input/drop invariants.
-4. For combat-engine changes, run deterministic/regression/stress coverage before release.
-5. Verify visual changes with rendered screenshots, not DOM dimensions alone.
-6. Publish through the existing Sites project only when deployment is requested and verify deployment status.
+4. For combat-engine changes, run proportional deterministic/regression coverage before release.
+5. Verify visual changes with rendered screenshots when presentation is changed.
+6. Publish through the existing Sites project only when deployment is requested.
 7. Update this same file concisely after meaningful changes.
