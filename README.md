@@ -3,45 +3,56 @@
 Browser-based auto battler built with Next.js-compatible app code and the ChatGPT Sites / vinext deployment workflow.
 
 - Repository source of truth: GitHub `main`
-- Current source status: **v0.7 candidate**
-- Deployed Sites release: **v0.6** until the candidate is explicitly deployed
+- Current source status: **v0.8 candidate**
+- Deployed Sites release: **v0.7**
 - Site: `https://pepepow-auto-battleground.edisonhuang.chatgpt.site/`
 
-## v0.7 candidate gameplay changes
+## v0.8 candidate — three original Arcanists
 
-### Arcanist
-Five existing units now carry the additive `Arcanist` trait while retaining their faction and class:
+v0.8 expands the roster from 24 to 27 units with three genuinely new playable characters rather than only adding traits to existing units:
 
-- Glow Medic
-- Volt Hacker
-- Circuit Sage
-- Wild Seer
-- Storm Hacker
+- **Arcane Apprentice** — 1 Gold — Machine / Support / Arcanist
+  - Mana Ward: heals the two lowest-health allies for 150% Attack and grants them 20 Mana; Arcanist skill power scales the effect.
+- **Rune Blaster** — 2 Gold — Crystal / Hacker / Arcanist
+  - Rune Nova: detonates across a 2-cell radius for 145% Attack damage.
+- **Chrono Mage** — 4 Gold — Underground / Hacker / Arcanist
+  - Time Lock: deals 135% Attack damage around the target and stuns surviving targets for 1 tick.
 
-Arcanist thresholds are authoritative in `app/game-data.ts`:
+Each unit has its own 320×320 WebP portrait in `public/units/`. The reproducible art source is `scripts/generate-v08-unit-art.py`.
+
+The three new units deliberately avoid `Ranger` and `Void`, so they do not directly strengthen the previously dominant Ranger + Void legendary core. The 5-Gold legendary pool is unchanged.
+
+### Arcanist remains 2 / 4
+
+For this candidate the authoritative Arcanist thresholds remain:
 
 - 2 Arcanist: +25 starting Mana and +15% skill effect
 - 4 Arcanist: +45 starting Mana and +30% skill effect
 
-Null Sovereign and Aurora Titan deliberately do **not** receive Arcanist so the established Ranger + Void + legendary core is not strengthened indirectly.
+A possible 6-Arcanist capstone is intentionally deferred. Adding it would require a broader three-tier trait/UI/AI data-model change and should be evaluated after observing the expanded roster.
 
-### Counter / sustain balance
+Combat engine: `combat-balance-0.8.0`. Replay format remains v4.
 
-- Assassin opening targeting prefers Rangers among equivalent backline targets.
-- Assassin 2: +25% damage to Rangers.
-- Assassin 3: +45% damage to Rangers.
-- Wild now uses reachable `2 / 3` thresholds: +15% / +32% team HP.
-- Support 2 / 3 healing multipliers are +40% / +80%.
-- Arcanist skill power also amplifies compatible Support spell effects.
+## v0.7 deployed baseline
 
-The combat engine version is `combat-balance-0.7.0`; replay format is v4.
+The deployed v0.7 release already includes:
 
-## v0.7 presentation changes
+- additive Arcanist on Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, and Storm Hacker
+- Assassin priority/counter damage against Rangers
+- reachable Wild `2 / 3` thresholds and stronger Support healing
+- desktop Board-corner synergy totems removed; mobile indicators moved outside playable Board cells
+- 2★ / 3★ decorative glow removed while star labels remain
+- five-card mobile Shop fit at the supported phone widths
 
-- New WebP portraits are maintained in `public/units/` for the five Arcanist units.
-- Desktop hides the Board-corner synergy totems; synergy values remain available in the HUD/status interfaces.
-- Mobile keeps synergy totems outside the playable Board cells.
-- Existing v0.6 Windows Shop visibility and mobile Board/Bench separation fixes remain in `app/v06-overrides.css`.
+## Verification
+
+For the v0.8 candidate:
+
+- Next.js production build: **PASS**
+- TypeScript regression suite (`tests/*.test.ts`): **PASS**
+- New regressions cover all three new units, Mana Ward, Rune Nova, Time Lock, Arcanist rules, deterministic combat, Shop odds, AI/game rules, and UI contracts.
+
+The legacy combined `npm test` command also invokes `tests/rendered-html.test.mjs`, which expects the Sites/Vite `dist/server/index.js` artifact even though the command first runs `next build`; that artifact mismatch is separate from the v0.8 combat implementation. The production build and applicable TypeScript regressions passed independently.
 
 ## Authoritative modules
 
@@ -50,19 +61,8 @@ The combat engine version is `combat-balance-0.7.0`; replay format is v4.
 - Economy and progression: `app/game-rules.ts`
 - Deterministic combat and replay: `app/battle-engine.ts`
 - Planning AI: `app/ai-engine.ts`
-- Responsive and visual overrides: `app/v06-overrides.css`
+- Responsive overrides: `app/v06-overrides.css`, `app/v07-overrides.css`
 - Regression tests: `tests/`
-- Canonical project context for future work: `PROJECT_STATE.md`
+- Canonical project context: `PROJECT_STATE.md`
 
-## Development / verification
-
-Use the existing locked project scripts rather than changing dependencies for routine work:
-
-```bash
-npm test
-npm run build
-```
-
-For ChatGPT Sites, use the existing `*:sites` / vinext workflow defined by the repository and the Sites project. Standard Next.js compatibility is retained for external environments.
-
-Do not treat an untested GitHub candidate as deployed. Combat changes should receive deterministic regression tests plus appropriate battle simulation before release.
+v0.8 is not deployed to Sites until explicitly published.
