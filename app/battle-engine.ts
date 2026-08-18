@@ -2,7 +2,7 @@ import { ITEMS, Trait, TRAIT_DETAILS, UNIT_MAP } from "./game-data";
 
 export const REPLAY_FORMAT = "pepepow.auto-battleground.replay" as const;
 export const REPLAY_VERSION = 4 as const;
-export const ENGINE_VERSION = "combat-balance-0.7.0";
+export const ENGINE_VERSION = "combat-balance-0.8.0";
 
 export type OwnedUnit = {
   uid: string;
@@ -315,24 +315,30 @@ export function simulateBattle(playerArmy: OwnedUnit[], enemyArmy: OwnedUnit[], 
           const allies = units.filter((unit) => !unit.dead && unit.team === attacker.team).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
           const healBoost = tier(ownCounts, "Support") === 2 ? 1.8 : tier(ownCounts, "Support") === 1 ? 1.4 : 1;
           const global = def.id === "wild-seer";
+          const manaWard = def.id === "arcane-apprentice";
           const chosen = global ? allies : allies.slice(0, role === "Support" ? 2 : 1);
           for (const ally of chosen) {
-            const requested = Math.round(attacker.attack * (role === "Support" ? 2.1 : 1.4) * healBoost * attacker.skillPower);
+            const healScale = manaWard ? 1.5 : role === "Support" ? 2.1 : 1.4;
+            const requested = Math.round(attacker.attack * healScale * healBoost * attacker.skillPower);
             const healed = Math.min(requested, ally.maxHp - ally.hp);
             ally.hp += healed; ally.action = "hit"; stats.get(attacker.uid)!.healing += healed;
             events.push(event(tick, "heal", attacker.uid, `${ally.uid}-${events.length}`, { targetUid: ally.uid, to: ally.position, amount: healed, skillId: def.id }));
+            if (manaWard) ally.mana = Math.min(100, ally.mana + Math.round(20 * attacker.skillPower));
           }
         } else {
           const isGlobal = def.id === "aurora-titan" || def.id === "null-sovereign";
           const isArea = role === "Hacker" || role === "Brawler" || def.id === "volt-hacker";
-          const targets = isGlobal ? enemies : isArea ? enemies.filter((enemy) => gridDistance(enemy.position, target.position) <= 1) : [target];
+          const areaRadius = def.id === "rune-blaster" ? 2 : 1;
+          const targets = isGlobal ? enemies : isArea ? enemies.filter((enemy) => gridDistance(enemy.position, target.position) <= areaRadius) : [target];
           for (const victim of targets.length ? targets : [target]) {
             events.push(event(tick, "projectile", attacker.uid, `${victim.uid}-${events.length}`, { targetUid: victim.uid, from: attacker.position, to: victim.position, skillId: def.id }));
             const counter = assassinCounterMultiplier(attacker, victim, ownCounts);
-            const skillDamage = Math.round(damageAmount(attacker, victim, tier(ownCounts, "Void") ? 18 : 0, false, random) * (role === "Assassin" ? 2.25 : isGlobal ? 1.25 : 1.65) * attacker.skillPower * counter);
+            const skillMultiplier = role === "Assassin" ? 2.25 : isGlobal ? 1.25 : def.id === "rune-blaster" ? 1.45 : def.id === "chrono-mage" ? 1.35 : 1.65;
+            const skillDamage = Math.round(damageAmount(attacker, victim, tier(ownCounts, "Void") ? 18 : 0, false, random) * skillMultiplier * attacker.skillPower * counter);
             applyDamage(tick, attacker, victim, skillDamage, events, false, def.id);
-            if (["deep-warden", "storm-hacker", "null-sovereign"].includes(def.id) && !victim.dead) {
-              victim.stunned = Math.max(victim.stunned, def.id === "null-sovereign" ? 3 : 2);
+            if (["deep-warden", "storm-hacker", "chrono-mage", "null-sovereign"].includes(def.id) && !victim.dead) {
+              const stunTicks = def.id === "null-sovereign" ? 3 : def.id === "chrono-mage" ? 1 : 2;
+              victim.stunned = Math.max(victim.stunned, stunTicks);
               events.push(event(tick, "stun", attacker.uid, `${victim.uid}-${events.length}`, { targetUid: victim.uid, to: victim.position, skillId: def.id }));
             }
           }
