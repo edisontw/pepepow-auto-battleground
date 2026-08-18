@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { UNITS } from "../app/game-data";
 import { applyXp, effectiveShopOdds, incomeFor, oddsForLevel, oddsTotal, passiveXpForRound, resolveDropTarget } from "../app/game-rules";
 
 test("passive XP follows the tuned two-round curve and caps at eight", () => {
@@ -23,7 +24,8 @@ test("every displayed shop odds row totals 100 percent", () => {
     assert.equal(oddsTotal(level), 100);
     assert.equal(oddsForLevel(level).length, 5);
   }
-  const withoutOneCost = effectiveShopOdds(4, new Set(["pickaxe-scout", "tunnel-guard", "spark-mechanic", "wild-burrower", "data-slinger", "glow-medic"]));
+  const allOneCostIds = new Set(UNITS.filter((unit) => unit.cost === 1).map((unit) => unit.id));
+  const withoutOneCost = effectiveShopOdds(4, allOneCostIds);
   assert.equal(withoutOneCost[0], 0);
   assert.equal(withoutOneCost.reduce((sum, value) => sum + value, 0), 100);
 });
