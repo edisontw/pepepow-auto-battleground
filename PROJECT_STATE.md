@@ -74,7 +74,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
 - `app/v08-fixes.css` is loaded after `v08-overrides.css` for narrowly scoped post-deploy corrections.
-- `app/v09-art.css` is loaded after v0.8 fixes, and site metadata describes the v0.9 candidate.
+- `app/v09-art.css` is loaded after v0.8 fixes, and site metadata describes the v0.9 release.
 
 ## 7. Progression / Shop / economy
 
@@ -118,7 +118,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 
 ## 10. Validation / next step
 
-- Local Next.js production build, ESLint and all TypeScript regression suites pass for the v0.9 candidate.
+- Local Next.js production build, ESLint and all TypeScript regression suites pass for the v0.9 release.
 - The mirrored matchup harness was run at 128 fixed seeds per side/pairing. Mirroring removes top/bottom spawn bias and makes self-matchups 50%.
 - The matrix is intentionally diagnostic: optimized Arcanist/Cyber shells still lack two reliable counters and must remain a balance warning rather than being declared solved.
 - Before deployment, run the full harness after any tuning, then visually smoke-test Synergy sigils/VFX at 1366×768 and one supported mobile viewport.
