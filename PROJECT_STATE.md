@@ -67,6 +67,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Desktop Board-corner synergy totems remain hidden; mobile totems stay outside playable cells.
 - Every faction/class has an authored SVG sigil under `public/synergies/`, reused in the Synergy list, mobile indicators, Unit Info and Game Archive.
 - The in-game `HOW TO PLAY` manual is updated for v0.9 with Synergy sigils, the six counter units, combat-effect colors, Assassin targeting and adaptive Hard-AI behavior.
+- v0.9.1 forces the current deployment shell to revalidate so the landing page and Game Archive consistently load the 33-unit roster instead of a cached 24-unit bundle.
 
 ## 6. Replay / responsive presentation
 

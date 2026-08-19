@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PEPEPOW Auto Battleground",
-  description: "PEPEPOW Auto Battleground v0.9 — a premium realistic 2.5D auto battler with unified character art, readable spell language, deterministic replays, and adaptive AI commanders.",
+  description: "PEPEPOW Auto Battleground v0.9.1 — 33 original units, 14 illustrated synergies, readable spell language, deterministic replays, and adaptive AI commanders.",
   other: {
     "codex-preview": "development",
   },

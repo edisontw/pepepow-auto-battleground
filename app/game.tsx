@@ -659,7 +659,7 @@ export default function Game() {
     <main className="landing-shell">
       <div className="ore-glow glow-one" /><div className="ore-glow glow-two" />
       <section className="landing-card">
-        <div className="brand-lockup"><img src="/pepepow-symbol.png" alt="PEPEPOW symbol" width="58" height="58" fetchPriority="high" /><div><span>PEPEPOW</span><small>ART UNIFICATION · v0.9</small></div></div>
+        <div className="brand-lockup"><img src="/pepepow-symbol.png" alt="PEPEPOW symbol" width="58" height="58" fetchPriority="high" /><div><span>PEPEPOW</span><small>ART UNIFICATION · v0.9.1</small></div></div>
         <div className="hero-copy"><p className="eyebrow">PREMIUM 2.5D · DETERMINISTIC COMBAT</p><h1>AUTO<br/><em>BATTLEGROUND</em></h1><p>Recruit a crew. Forge powerful synergies. Watch every strike, spell and tactical choice unfold — then inspect or replay the battle.</p></div>
         <div className="feature-rail"><span><b>{UNITS.length}</b> original units</span><span><b>{Object.keys(TRAIT_DETAILS).length}</b> traits</span><span><b>7</b> commanders</span><span><b>∞</b> evolving rounds</span></div>
         <div className="difficulty-picker" aria-label="AI difficulty"><span>AI DIFFICULTY</span>{(["Easy", "Normal", "Hard"] as AIDifficulty[]).map((entry) => <button key={entry} className={difficulty === entry ? "active" : ""} onClick={() => setDifficulty(entry)} aria-pressed={difficulty === entry}>{entry.toUpperCase()}</button>)}</div>
