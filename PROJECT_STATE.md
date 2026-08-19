@@ -2,10 +2,9 @@
 
 > Canonical context for future ChatGPT Sites / Codex work. Read this file first; do not rescan the whole repository unless the task genuinely requires it.
 
-**Last updated:** 2026-08-19  
-**Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
-**Current deployed version:** v0.9 art-unification release  
-**Currently deployed commit:** user reports GitHub `main` through `0eba0eb00a5acc6afcaeed509b5bf310f1a06222` deployed  
+**Last updated:** 2026-08-20
+**Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/
+**Current deployed version:** v0.9.2 combat-clarity release
 **v0.9 base commit:** `599f614b430cc413a82e91d3cd407dd487a55866`; the art-unification release is published from the current GitHub `main`
 
 ## 1. Product / architecture invariants
@@ -63,6 +62,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Battlefield Mana bars remain hidden; Mana is still simulated and visible in Unit Info.
 - HP is the only persistent battlefield resource bar and is always green.
 - Ranged / magic attacks use the fixed single / piercing / chain / area / heal / control / shield grammar in `app/v09-art.css`; AoE/global skills fan out visually to affected targets without changing damage logic.
+- v0.9.2 filters cell flashes to meaningful damage/heal/shield/control endpoints, colors those endpoints by event family, shows a brief ally/enemy ability banner, and keeps a two-line live combat feed.
 - Player and enemy pieces have restrained team distinction: player green-cyan edge/glow cues and enemy red-coral edge/glow/star cues while HP stays green for both.
 - Desktop Board-corner synergy totems remain hidden; mobile totems stay outside playable cells.
 - Every faction/class has an authored SVG sigil under `public/synergies/`, reused in the Synergy list, mobile indicators, Unit Info and Game Archive.
@@ -76,6 +76,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Desktop Replay has explicit 8:6 geometry plus viewport width/height and minimum-size guards so generic low-height Board rules cannot collapse it to a tiny center board.
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
+- Unit Info is a bounded desktop side sheet and a full-width scrollable mobile sheet. Its authored Synergy sigils use fixed 26px boxes and cannot inherit card padding or minimum height.
 - `app/v08-fixes.css` is loaded after `v08-overrides.css` for narrowly scoped post-deploy corrections.
 - `app/v09-art.css` is loaded after v0.8 fixes, and site metadata describes the v0.9 release.
 
@@ -121,7 +122,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 
 ## 10. Validation / next step
 
-- Local Next.js production build, ESLint and all TypeScript regression suites pass for the v0.9 release.
+- The v0.9.2 Sites production build, rendered-worker check, ESLint and all 40 TypeScript regression tests pass.
 - The mirrored matchup harness was run at 128 fixed seeds per side/pairing. Mirroring removes top/bottom spawn bias and makes self-matchups 50%.
 - The matrix is intentionally diagnostic: optimized Arcanist/Cyber shells still lack two reliable counters and must remain a balance warning rather than being declared solved.
 - Before deployment, run the full harness after any tuning, then visually smoke-test Synergy sigils/VFX at 1366×768 and one supported mobile viewport.

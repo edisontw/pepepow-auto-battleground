@@ -5,6 +5,7 @@ import test from "node:test";
 const game = readFileSync(new URL("../app/game.tsx", import.meta.url), "utf8");
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const v06 = readFileSync(new URL("../app/v06-overrides.css", import.meta.url), "utf8");
+const v09 = readFileSync(new URL("../app/v09-art.css", import.meta.url), "utf8");
 
 test("mobile gameplay exposes compact equipment and synergy panels", () => {
   assert.match(game, /function MobileStatusDock/);
@@ -66,4 +67,18 @@ test("battle archive exposes enemy historical inspection", () => {
   assert.match(game, /ENEMY LINEUP/);
   assert.match(game, /HISTORICAL ENEMY SNAPSHOT/);
   assert.match(game, /selected\?\.result\.frames\[0\]/);
+});
+
+test("unit detail synergy sigils stay inside their cards", () => {
+  assert.match(game, /className="detail-traits"[\s\S]*?<article key=\{trait\}>/);
+  assert.match(v09, /\.detail-traits>article \{[^}]*padding-left:39px;[^}]*min-height:42px/);
+  assert.match(v09, /\.detail-traits \.trait-gem \{[^}]*width:26px;[^}]*height:26px;[^}]*min-height:0;[^}]*padding:0/);
+  assert.doesNotMatch(v09, /\.detail-traits span \{/);
+});
+
+test("combat presentation filters endpoint effects and announces ability casts", () => {
+  assert.match(game, /const CELL_EFFECT_TYPES = new Set/);
+  assert.match(game, /visibleCellEvents\(combatFrame\?\.events\.filter/);
+  assert.match(game, /className=\{`skill-banner team-\$\{featuredCaster\.team\}`\}/);
+  assert.match(game, /className="battle-message" role="status" aria-live="polite"/);
 });
