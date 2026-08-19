@@ -4,7 +4,7 @@ import { buildCombatSnapshot, chooseCombatTarget, CombatUnit, ENGINE_VERSION, fi
 import { UNIT_MAP } from "../app/game-data";
 
 function combat(uid: string, unitId: string, team: "player" | "enemy", position: number, hp = 500): CombatUnit {
-  return { uid, unitId, team, star: 1, position, spawnPosition: position, previousPosition: null, hp, maxHp: hp, mana: 0, attack: 50, armor: 10, range: unitId === "pickaxe-scout" ? 3 : 1, skillPower: 1, itemIds: [], dead: false, action: "idle", shield: 0, stunned: 0, targetUid: null, forcedTargetUid: null, forcedTargetTicks: 0 };
+  return { uid, unitId, team, star: 1, position, spawnPosition: position, previousPosition: null, hp, maxHp: hp, mana: 0, attack: 50, armor: 10, range: unitId === "pickaxe-scout" ? 3 : 1, skillPower: 1, itemIds: [], dead: false, action: "idle", shield: 0, stunned: 0, targetUid: null, forcedTargetUid: null, forcedTargetTicks: 0, healingReductionTicks: 0, feedbackTicks: 0, feedbackRate: 0, feedbackSourceUid: null };
 }
 
 test("normal targeting chooses nearest reachable and only uses HP as a tie break", () => {
@@ -73,13 +73,32 @@ test("three Wild units can now activate the reachable tier-two health bonus", ()
   assert.equal(seer?.maxHp, Math.round(720 * 1.32));
 });
 
-test("v0.8 adds three original Arcanists without adding Ranger or Void to them", () => {
-  assert.equal(ENGINE_VERSION, "combat-balance-0.8.0");
+test("v0.9 keeps the original Arcanist identities while extending counterplay", () => {
+  assert.equal(ENGINE_VERSION, "combat-balance-0.9.0");
   for (const id of ["arcane-apprentice", "rune-blaster", "chrono-mage"]) {
     assert.equal(UNIT_MAP[id].traits.includes("Arcanist"), true);
     assert.equal(UNIT_MAP[id].traits.includes("Ranger"), false);
     assert.equal(UNIT_MAP[id].traits.includes("Void"), false);
   }
+});
+
+test("new counter units emit deterministic control events for their authored mechanics", () => {
+  const player: OwnedUnit[] = [
+    { uid: "mire", unitId: "mire-chemist", star: 2, position: 40, itemIds: ["data-cell", "data-cell"] },
+    { uid: "spark", unitId: "spark-mechanic", star: 2, position: 41, itemIds: [] },
+    { uid: "gear", unitId: "gear-smith", star: 2, position: 42, itemIds: [] },
+    { uid: "leech", unitId: "signal-leech", star: 2, position: 43, itemIds: [] },
+    { uid: "coil", unitId: "coil-ranger", star: 2, position: 47, itemIds: [] },
+  ];
+  const enemy: OwnedUnit[] = [
+    { uid: "guard", unitId: "iron-bulwark", star: 3, position: 8, itemIds: ["aegis-node", "data-cell"] },
+    { uid: "ranger", unitId: "prism-gunner", star: 3, position: 0, itemIds: ["aegis-node", "data-cell"] },
+  ];
+  const result = simulateBattle(player, enemy, 991);
+  const events = result.frames.flatMap((frame) => frame.events);
+  assert.equal(events.some((entry) => entry.type === "control" && entry.skillId === "mire-chemist"), true);
+  assert.equal(events.some((entry) => entry.type === "control" && entry.skillId === "signal-leech"), true);
+  assert.equal(events.some((entry) => entry.type === "control" && entry.skillId === "coil-ranger"), true);
 });
 
 test("Arcane Apprentice Mana Ward refunds Arcanist-scaled mana after casting", () => {

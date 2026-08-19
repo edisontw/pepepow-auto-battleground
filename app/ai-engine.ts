@@ -5,6 +5,16 @@ import { applyXp, effectiveShopOdds, GAME_RULES, incomeFor, passiveXpForRound } 
 export type AIPersonality = "Balanced" | "Tempo" | "Economist" | "Collector" | "Synergy Hunter" | "Adaptive";
 export type AIDifficulty = "Easy" | "Normal" | "Hard";
 
+export type PublicBoardThreat = {
+  ranger: number;
+  arcanist: number;
+  assassin: number;
+  highTempo: number;
+  backlineCarrySide: "left" | "right" | "split";
+};
+
+export type AIPlanningContext = { playerBoard?: OwnedUnit[] };
+
 export type AIBehavior = {
   bought: number;
   rerolls: number;
@@ -159,7 +169,22 @@ function equipmentPower(unit: OwnedUnit) {
   }, 0);
 }
 
-function unitPower(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * (unit.star === 1 ? 9 : unit.star === 2 ? 28 : 85) + equipmentPower(unit); }
+function equipmentMismatchPenalty(unit: OwnedUnit) {
+  const def = UNIT_MAP[unit.unitId];
+  const role = def.traits[1];
+  const frontline = frontClasses.has(role);
+  const caster = role === "Support" || role === "Engineer" || role === "Hacker" || def.traits.includes("Arcanist");
+  return unit.itemIds.reduce((sum, id) => {
+    const item = ITEMS.find((entry) => entry.id === id);
+    if (!item) return sum;
+    if (item.mana && !caster) return sum + 9;
+    if ((item.hp || item.armor) && !frontline && role !== "Assassin") return sum + 7;
+    if (item.attack && !damageClasses.has(role)) return sum + 8;
+    return sum;
+  }, 0);
+}
+
+function unitPower(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * (unit.star === 1 ? 9 : unit.star === 2 ? 28 : 85) + equipmentPower(unit) - equipmentMismatchPenalty(unit); }
 function unitRefund(unit: OwnedUnit) { return UNIT_MAP[unit.unitId].cost * starCopies(unit.star); }
 
 function itemFitValue(unit: OwnedUnit, item: (typeof ITEMS)[number]) {
@@ -223,10 +248,39 @@ function isLateStrategicPurchase(ai: AICommander, unitId: string) {
   const breakpoint = completesStrategicBreakpoint(ai, unitId);
   const focus = def.traits.includes(ai.focus);
   const preferred = (preferredRoles[ai.focus] ?? []).includes(def.traits[1]);
+  const abandonedThreeStar = def.cost <= 2 && copies >= 3 && copies < 8 && !breakpoint && !upgradeNear
+    && (ai.personality !== "Collector" || copies < 6);
+  if (abandonedThreeStar) return false;
   return def.cost >= 4 || breakpoint || upgradeNear || upgraded || onCore || (def.cost >= 3 && (focus || preferred));
 }
 
-function compositionValue(ai: AICommander, units: OwnedUnit[]) {
+export function analyzePublicBoard(units: OwnedUnit[]): PublicBoardThreat {
+  const deployed = units.filter((unit) => unit.position !== null);
+  const count = (trait: Trait) => deployed.filter((unit) => UNIT_MAP[unit.unitId].traits.includes(trait)).length;
+  const carries = deployed.filter((unit) => {
+    const role = UNIT_MAP[unit.unitId].traits[1];
+    return role === "Ranger" || UNIT_MAP[unit.unitId].traits.includes("Arcanist");
+  });
+  const left = carries.filter((unit) => (unit.position! % 8) < 4).length;
+  const right = carries.length - left;
+  return {
+    ranger: count("Ranger"),
+    arcanist: count("Arcanist"),
+    assassin: count("Assassin"),
+    highTempo: count("Ranger") + count("Engineer"),
+    backlineCarrySide: left === right ? "split" : left > right ? "left" : "right",
+  };
+}
+
+function threatResponse(ai: AICommander) {
+  if (ai.personality === "Adaptive") return 1.35;
+  if (ai.personality === "Tempo") return 1.15;
+  if (ai.personality === "Synergy Hunter") return .8;
+  if (ai.personality === "Collector") return .65;
+  return 1;
+}
+
+function compositionValue(ai: AICommander, units: OwnedUnit[], threat?: PublicBoardThreat) {
   const counts = uniqueTraitCounts(units);
   let score = units.reduce((sum, unit) => sum + unitPower(unit), 0);
   for (const [trait, count] of counts) {
@@ -257,6 +311,13 @@ function compositionValue(ai: AICommander, units: OwnedUnit[]) {
     if (frontline >= 2 && support >= 2) score += 12;
     if (assassin >= 2 && frontline >= 1) score += 8;
     if (arcanist >= 2 && support >= 1) score += 7;
+    if (threat) {
+      const response = threatResponse(ai);
+      if (threat.ranger + threat.arcanist >= 3) score += assassin * 11 * response;
+      if (threat.assassin >= 2) score += (support * 8 + guardian * 7) * response;
+      if (threat.highTempo >= 3 && units.some((unit) => unit.unitId === "coil-ranger")) score += 28 * response;
+      if (threat.assassin >= 2 && units.some((unit) => unit.unitId === "lantern-warden")) score += 24 * response;
+    }
     if (ai.level >= 7) {
       score += units.reduce((sum, unit) => {
         const cost = UNIT_MAP[unit.unitId].cost;
@@ -267,7 +328,7 @@ function compositionValue(ai: AICommander, units: OwnedUnit[]) {
   return score;
 }
 
-function candidateValue(ai: AICommander, unitId: string, weights: Weights, random: SeededRandom) {
+function candidateValue(ai: AICommander, unitId: string, weights: Weights, random: SeededRandom, threat?: PublicBoardThreat) {
   const def = UNIT_MAP[unitId];
   const copies = ownedBaseCopies(ai.units, unitId);
   const upgrade = copies % 3 === 2 || copies % 9 === 8 ? 12 : copies ? 4 : 0;
@@ -287,7 +348,13 @@ function candidateValue(ai: AICommander, unitId: string, weights: Weights, rando
   const magicPressure = ai.difficulty === "Hard" && def.traits.includes("Arcanist") ? 5 : 0;
   const lateGame = ai.difficulty === "Hard" && ai.level >= 7 && def.cost >= 4 ? 11 : 0;
   const lateNoveltyPenalty = ai.difficulty === "Hard" && ai.level >= 7 && isNew && def.cost <= 2 && breakpoint === 0 ? 24 : 0;
-  return def.cost * weights.power + upgrade * weights.upgrade + synergy * weights.synergy + (focus + preferred + hardCounter + sustain + magicPressure + breakpoint + lateGame) * weights.focus - lateNoveltyPenalty + (random.next() - .5) * weights.noise;
+  const response = threat ? threatResponse(ai) : 0;
+  const counter = !threat ? 0
+    : def.traits[1] === "Assassin" && threat.ranger + threat.arcanist >= 3 ? 13 * response
+      : (def.traits[1] === "Support" || def.traits[1] === "Guardian") && threat.assassin >= 2 ? 10 * response
+        : unitId === "coil-ranger" && threat.highTempo >= 3 ? 18 * response
+          : 0;
+  return def.cost * weights.power + upgrade * weights.upgrade + synergy * weights.synergy + (focus + preferred + hardCounter + sustain + magicPressure + breakpoint + lateGame + counter) * weights.focus - lateNoveltyPenalty + (random.next() - .5) * weights.noise;
 }
 
 function effectiveWeights(ai: AICommander): Weights {
@@ -317,7 +384,7 @@ function nextInterestFloor(gold: number, target: number) {
   return Math.min(target, Math.floor(Math.max(0, gold) / 10) * 10);
 }
 
-function selectBoard(ai: AICommander, units: OwnedUnit[], level: number) {
+function selectBoard(ai: AICommander, units: OwnedUnit[], level: number, threat?: PublicBoardThreat) {
   const count = Math.min(level, units.length);
   if (count >= units.length) return [...units];
   if (ai.difficulty === "Easy") return [...units].sort((a, b) => unitPower(b) - unitPower(a) || (a.uid < b.uid ? -1 : 1)).slice(0, count);
@@ -330,7 +397,7 @@ function selectBoard(ai: AICommander, units: OwnedUnit[], level: number) {
       let bestIndex = 0;
       let bestScore = -Infinity;
       for (let index = 0; index < remaining.length; index += 1) {
-        const score = compositionValue(ai, [...selected, remaining[index]]);
+        const score = compositionValue(ai, [...selected, remaining[index]], threat);
         if (score > bestScore) { bestScore = score; bestIndex = index; }
       }
       selected.push(remaining.splice(bestIndex, 1)[0]);
@@ -339,11 +406,11 @@ function selectBoard(ai: AICommander, units: OwnedUnit[], level: number) {
   }
 
   let best: OwnedUnit[] = ordered.slice(0, count);
-  let bestScore = compositionValue(ai, best);
+  let bestScore = compositionValue(ai, best, threat);
   const picked: OwnedUnit[] = [];
   const visit = (start: number) => {
     if (picked.length === count) {
-      const score = compositionValue(ai, picked);
+      const score = compositionValue(ai, picked, threat);
       if (score > bestScore) { bestScore = score; best = [...picked]; }
       return;
     }
@@ -360,7 +427,7 @@ function selectBoard(ai: AICommander, units: OwnedUnit[], level: number) {
      This stops tiny score differences from causing a different late-game army every round. */
   const current = units.filter((unit) => unit.position !== null);
   if (current.length === count) {
-    const currentScore = compositionValue(ai, current);
+    const currentScore = compositionValue(ai, current, threat);
     const late = level >= 7;
     const margin = late ? Math.max(24, currentScore * .05) : 6;
     const currentIds = new Set(current.map((unit) => unit.uid));
@@ -371,14 +438,19 @@ function selectBoard(ai: AICommander, units: OwnedUnit[], level: number) {
   return best;
 }
 
-function positionBoard(ai: AICommander, units: OwnedUnit[], level: number) {
-  const selected = selectBoard(ai, units, level);
+function positionBoard(ai: AICommander, units: OwnedUnit[], level: number, threat?: PublicBoardThreat) {
+  const selected = selectBoard(ai, units, level, threat);
   const selectedIds = new Set(selected.map((unit) => unit.uid));
   const front = ai.difficulty === "Hard" ? [19, 20, 18, 21, 17, 22, 16, 23] : [16, 18, 21, 23, 17, 22, 19, 20];
-  const back = ai.difficulty === "Hard" ? [0, 7, 2, 5, 1, 6, 3, 4, 8, 15] : [0, 7, 2, 5, 1, 6, 3, 4, 8, 15];
+  const guardedBack = threat?.assassin && threat.assassin >= 2 ? [3, 4, 2, 5, 1, 6, 11, 12, 0, 7] : [0, 7, 2, 5, 1, 6, 3, 4, 8, 15];
+  const back = guardedBack;
   const middle = [9, 14, 10, 13, 11, 12];
   const supportLane = ai.difficulty === "Hard" ? [9, 14, 10, 13, 2, 5, 1, 6, 11, 12] : back.concat(middle);
-  const assassinLane = ai.difficulty === "Hard" ? [16, 23, 17, 22, 8, 15, 18, 21, ...middle] : [7, 0, 15, 8, ...middle, ...front];
+  const assassinLane = ai.difficulty === "Hard"
+    ? threat?.backlineCarrySide === "left" ? [16, 17, 8, 18, 9, 19, 23, 22, ...middle]
+      : threat?.backlineCarrySide === "right" ? [23, 22, 15, 21, 14, 20, 16, 17, ...middle]
+        : [16, 23, 17, 22, 8, 15, 18, 21, ...middle]
+    : [7, 0, 15, 8, ...middle, ...front];
   const occupied = new Set<number>();
   const retainedPositions = new Map<string, number>();
 
@@ -390,11 +462,12 @@ function positionBoard(ai: AICommander, units: OwnedUnit[], level: number) {
     }
   }
 
-  const place = (unit: OwnedUnit) => {
+  const assigned = new Map<string, number>();
+  const place = (unit: OwnedUnit, forcedLane?: number[]) => {
     const retained = retainedPositions.get(unit.uid);
     if (retained !== undefined) return { ...unit, position: retained };
     const cls = UNIT_MAP[unit.unitId].traits[1];
-    let lane = ai.difficulty === "Easy"
+    let lane = forcedLane ?? (ai.difficulty === "Easy"
       ? middle.concat(front, back)
       : frontClasses.has(cls)
         ? front.concat(middle, back)
@@ -404,13 +477,19 @@ function positionBoard(ai: AICommander, units: OwnedUnit[], level: number) {
             ? back.concat(middle, front)
             : cls === "Assassin"
               ? assassinLane.concat(front)
-              : middle.concat(front, back);
+              : middle.concat(front, back));
     if (ai.difficulty === "Normal" && cls === "Assassin") lane = [7, 0, 15, 8, ...middle, ...front];
     const position = lane.find((cell) => !occupied.has(cell)) ?? [...Array(24).keys()].find((cell) => !occupied.has(cell)) ?? 0;
     occupied.add(position);
-    return { ...unit, position };
+    assigned.set(unit.uid, position);
   };
-  return units.map((unit) => selectedIds.has(unit.uid) ? place(unit) : { ...unit, position: null });
+  if (ai.difficulty === "Hard" && threat?.assassin && threat.assassin >= 2) {
+    const bait = [...selected].filter((unit) => frontClasses.has(UNIT_MAP[unit.unitId].traits[1]))
+      .sort((a, b) => unitPower(b) - unitPower(a))[0];
+    if (bait && !retainedPositions.has(bait.uid)) place(bait, [0, 7]);
+  }
+  for (const unit of selected) if (!assigned.has(unit.uid)) place(unit);
+  return units.map((unit) => selectedIds.has(unit.uid) ? { ...unit, position: assigned.get(unit.uid) ?? retainedPositions.get(unit.uid) ?? 0 } : { ...unit, position: null });
 }
 
 function benchKeepValue(ai: AICommander, unit: OwnedUnit) {
@@ -442,8 +521,8 @@ function makeHardBenchRoom(ai: AICommander, incomingUnitId: string) {
   return { ...ai, gold: ai.gold + unitRefund(worst), units: ai.units.filter((unit) => unit.uid !== worst.uid) };
 }
 
-function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom) {
-  const choices = ai.shop.map((unitId, index) => ({ unitId, index, score: unitId ? candidateValue(ai, unitId, weights, random) : -Infinity })).sort((a, b) => b.score - a.score).slice(0, weights.candidates);
+function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom, threat?: PublicBoardThreat) {
+  const choices = ai.shop.map((unitId, index) => ({ unitId, index, score: unitId ? candidateValue(ai, unitId, weights, random, threat) : -Infinity })).sort((a, b) => b.score - a.score).slice(0, weights.candidates);
   for (const choice of choices) {
     if (!choice.unitId || !isLateStrategicPurchase(ai, choice.unitId)) continue;
     const def = UNIT_MAP[choice.unitId];
@@ -467,6 +546,22 @@ function maybeBuy(ai: AICommander, weights: Weights, random: SeededRandom) {
   return ai;
 }
 
+function pruneHardBench(ai: AICommander, round: number) {
+  if (ai.difficulty !== "Hard" || round < 9) return ai;
+  const bench = ai.units.filter((unit) => unit.position === null);
+  const targetSize = round >= 14 ? 5 : 7;
+  if (bench.length <= targetSize) return ai;
+  const removable = bench.filter((unit) => {
+    const def = UNIT_MAP[unit.unitId];
+    const copies = ownedBaseCopies(ai.units, unit.unitId);
+    return unit.star === 1 && unit.itemIds.length === 0 && copies < 3 && !def.traits.includes(ai.focus) && !completesStrategicBreakpoint(ai, unit.unitId);
+  }).sort((a, b) => benchKeepValue(ai, a) - benchKeepValue(ai, b) || (a.uid < b.uid ? -1 : 1));
+  const remove = new Set(removable.slice(0, bench.length - targetSize).map((unit) => unit.uid));
+  if (!remove.size) return ai;
+  const refund = ai.units.filter((unit) => remove.has(unit.uid)).reduce((sum, unit) => sum + unitRefund(unit), 0);
+  return { ...ai, gold: ai.gold + refund, units: ai.units.filter((unit) => !remove.has(unit.uid)) };
+}
+
 function shouldChaseSynergy(ai: AICommander) {
   const counts = ai.difficulty === "Hard" && ai.level >= 7 ? strategicTraitCounts(ai) : uniqueTraitCounts(ai.units);
   for (const [trait, count] of counts) {
@@ -476,8 +571,9 @@ function shouldChaseSynergy(ai: AICommander) {
   return false;
 }
 
-export function planAI(ai: AICommander, round: number, random: SeededRandom, receiveIncome = true): AICommander {
+export function planAI(ai: AICommander, round: number, random: SeededRandom, receiveIncome = true, context: AIPlanningContext = {}): AICommander {
   if (!ai.alive) return ai;
+  const threat = ai.difficulty === "Hard" && context.playerBoard?.length ? analyzePublicBoard(context.playerBoard) : undefined;
   let next: AICommander = { ...ai, units: ai.units.map((unit) => ({ ...unit })), shop: [...ai.shop], behavior: { ...ai.behavior } };
   if (receiveIncome) {
     const income = incomeFor(next.gold, next.streak);
@@ -501,7 +597,7 @@ export function planAI(ai: AICommander, round: number, random: SeededRandom, rec
     next = { ...next, gold: next.gold - GAME_RULES.trainingCost, level: progression.level, xp: progression.xp, behavior: { ...next.behavior, trainingBuys: next.behavior.trainingBuys + 1 } };
   }
   for (let purchase = 0; purchase < GAME_RULES.shopSize; purchase += 1) {
-    const bought = maybeBuy(next, weights, random);
+    const bought = maybeBuy(next, weights, random, threat);
     if (bought === next) break;
     next = bought;
   }
@@ -521,11 +617,12 @@ export function planAI(ai: AICommander, round: number, random: SeededRandom, rec
     }
     next = { ...next, gold: next.gold - GAME_RULES.rerollCost, shop: rollAIShop(next.level, next.units, random), behavior: { ...next.behavior, rerolls: next.behavior.rerolls + 1 } };
     for (let purchase = 0; purchase < GAME_RULES.shopSize; purchase += 1) {
-      const bought = maybeBuy(next, weights, random); if (bought === next) break; next = bought;
+      const bought = maybeBuy(next, weights, random, threat); if (bought === next) break; next = bought;
     }
     rerolls += 1;
   }
-  next.units = positionBoard(next, next.units, next.level);
+  next.units = positionBoard(next, next.units, next.level, threat);
+  next = pruneHardBench(next, round);
   const before = ai.units.filter((unit) => unit.position !== null).map((unit) => `${unit.uid}:${unit.position}`).join("|");
   const after = next.units.filter((unit) => unit.position !== null).map((unit) => `${unit.uid}:${unit.position}`).join("|");
   next.behavior.formationChanges += before === after ? 0 : 1;
@@ -534,10 +631,10 @@ export function planAI(ai: AICommander, round: number, random: SeededRandom, rec
   return next;
 }
 
-export function advanceAICommanders(commanders: AICommander[], round: number, random: SeededRandom) {
+export function advanceAICommanders(commanders: AICommander[], round: number, random: SeededRandom, playerBoard: OwnedUnit[] = []) {
   const completedRound = Math.max(0, round - 1);
   const neutralReward = completedRound >= 5 && completedRound % 5 === 0;
-  return commanders.map((ai) => planAI(neutralReward ? equipNeutralReward(ai, completedRound) : ai, round, random, true));
+  return commanders.map((ai) => planAI(neutralReward ? equipNeutralReward(ai, completedRound) : ai, round, random, true, { playerBoard }));
 }
 
 export function createAICommanders(difficulty: AIDifficulty, random: SeededRandom): AICommander[] {

@@ -4,9 +4,9 @@
 
 **Last updated:** 2026-08-19  
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/  
-**Current deployed version:** v0.8 post-polish  
+**Current deployed version:** v0.9 art-unification release  
 **Currently deployed commit:** user reports GitHub `main` through `0eba0eb00a5acc6afcaeed509b5bf310f1a06222` deployed  
-**GitHub main:** newer late-game AI equipment polish and tests are committed after that deployment
+**v0.9 base commit:** `599f614b430cc413a82e91d3cd407dd487a55866`; the art-unification release is published from the current GitHub `main`
 
 ## 1. Product / architecture invariants
 
@@ -29,20 +29,20 @@
 
 ## 3. Combat baseline
 
-- Combat engine: `combat-balance-0.8.0`; replay format v4.
+- Combat engine: `combat-balance-0.9.0`; replay format v5.
 - Targeting: nearest reachable enemy with sticky targets and BFS pathing.
 - Guardian Taunt may override targeting.
-- Assassin opening acquisition prioritizes enemy backline and Rangers at equal depth.
-- Assassin 2/3: +25% / +45% damage to Rangers plus existing critical mechanic.
+- Assassin opening acquisition prioritizes enemy backline, then Rangers and Arcanists at equal depth.
+- Assassin 2/3 retains +25% / +45% damage to Rangers and gains a smaller Arcanist counter multiplier.
 - Wild 2/3: all allies +15% / +32% max HP.
 - Support 2/3: healing +40% / +80%.
 - Arcanist 2/4: +25/+45 starting Mana and +15%/+30% skill effect.
 
 Regression risks: target flicker, living-unit overlap, corpse obstruction, stuck movement, duplicate animation damage, frame-rate-dependent results, replay incompatibility.
 
-## 4. v0.8 roster
+## 4. v0.9 roster and art
 
-Roster: 27 units.
+Roster: 33 units.
 
 Newest Arcanists:
 
@@ -50,7 +50,11 @@ Newest Arcanists:
 - **Rune Blaster** — 2 Gold — Crystal / Hacker / Arcanist — radius-2 `Rune Nova` AoE.
 - **Chrono Mage** — 4 Gold — Underground / Hacker / Arcanist — area damage + 1-tick `Time Lock` stun.
 
-Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker. Null Sovereign and Aurora Titan remain non-Arcanist. A 6-Arcanist capstone remains deferred.
+Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker. Those five later-added mage portraits were rebuilt under the shared realistic-2.5D art rules. Null Sovereign and Aurora Titan remain non-Arcanist. A 6-Arcanist capstone remains deferred.
+
+New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Signal Leech (Mana interference), Lantern Warden (backline protection), Prism Hook (pull/control), and Coil Ranger (repeated-damage feedback).
+
+`ART_BIBLE.md` is authoritative for camera, light, proportions, silhouette language, faction materials/colors, transparent backgrounds and crop reuse. All unit assets remain 320×320 transparent WebP.
 
 ## 5. Board / combat presentation
 
@@ -58,10 +62,10 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 - Authoritative placement is the 8×6 DOM grid; decorative painted tiles must never imply different legal coordinates.
 - Battlefield Mana bars remain hidden; Mana is still simulated and visible in Unit Info.
 - HP is the only persistent battlefield resource bar and is always green.
-- Ranged / magic attacks use projectile events already emitted by deterministic combat; AoE/global skills fan out visually to affected targets without changing damage logic.
+- Ranged / magic attacks use the fixed single / piercing / chain / area / heal / control / shield grammar in `app/v09-art.css`; AoE/global skills fan out visually to affected targets without changing damage logic.
 - Player and enemy pieces have restrained team distinction: player green-cyan edge/glow cues and enemy red-coral edge/glow/star cues while HP stays green for both.
 - Desktop Board-corner synergy totems remain hidden; mobile totems stay outside playable cells.
-- Mobile totems map every trait to an explicit colored symbol using the trait name already present in their title attribute.
+- Every faction/class has an authored SVG sigil under `public/synergies/`, reused in the Synergy list, mobile indicators, Unit Info and Game Archive.
 
 ## 6. Replay / responsive presentation
 
@@ -70,7 +74,7 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
 - `app/v08-fixes.css` is loaded after `v08-overrides.css` for narrowly scoped post-deploy corrections.
-- Site metadata description is updated to v0.8.
+- `app/v09-art.css` is loaded after v0.8 fixes, and site metadata describes the v0.9 candidate.
 
 ## 7. Progression / Shop / economy
 
@@ -94,6 +98,9 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 - New late-game progression fix: surviving AI commanders receive one deterministic neutral-cycle equipment reward every 5 completed rounds starting after round 5. This starts later than the player's possible round-1 reward, so early difficulty is not inflated.
 - AI chooses the legal recipient based on the item's attack/HP/armor/Mana profile, preferring deployed/upgraded pieces. Equipment value is now included in Board-selection and Bench-keep scoring.
 - Each AI unit remains capped at the normal two items; there is no hidden item-stat multiplier.
+- Hard AI analyzes the player's public Board: Ranger/Arcanist density raises Assassin value, visible carry side changes Assassin lanes, and visible Assassins trigger inward carry placement plus optional durable corner bait.
+- Threat-response strength varies by personality; Adaptive and Tempo react more aggressively than Collector/Synergy Hunter.
+- Low-cost 3-star chases have a late-game stop condition, empty low-value Bench pieces are pruned, and equipment mismatch reduces Board-selection value so a better-fitting unit can replace the holder.
 - AI must never receive hidden Gold, XP, Shop, stat or combat advantages.
 
 ## 9. Authoritative modules
@@ -105,15 +112,17 @@ Other Arcanists: Glow Medic, Volt Hacker, Circuit Sage, Wild Seer, Storm Hacker.
 - Combat / snapshots / replay: `app/battle-engine.ts`
 - Economy / progression / Shop odds: `app/game-rules.ts`
 - Planning AI: `app/ai-engine.ts`
+- Fixed-seed balance matrix: `app/balance-matrix.ts`, `scripts/ai-matchup-matrix.ts`
+- Art specification: `ART_BIBLE.md`
 - Tests: `tests/`
 
 ## 10. Validation / next step
 
-- Replay/team/totem corrections through deployed commit `0eba0eb...` are reported as live by the user.
-- New late-game AI equipment logic is in `app/ai-engine.ts`, with a targeted regression test added to `tests/ai-engine.test.ts`.
-- GitHub reports no configured CI status checks for the newest commit, and this connector session cannot execute the repository locally; the newest AI equipment change has therefore not been build/test executed here.
-- Before the next deployment, proportional verification should cover TypeScript/build, `tests/ai-engine.test.ts`, representative Hard-AI simulations through rounds 20–30, and a quick replay/team visual smoke at 1366×768 plus one mobile viewport.
-- No combat-engine logic changed; do not rerun broad deterministic combat stress tests solely for these changes unless a combat regression appears.
+- Local Next.js production build, ESLint and all TypeScript regression suites pass for the v0.9 candidate.
+- The mirrored matchup harness was run at 128 fixed seeds per side/pairing. Mirroring removes top/bottom spawn bias and makes self-matchups 50%.
+- The matrix is intentionally diagnostic: optimized Arcanist/Cyber shells still lack two reliable counters and must remain a balance warning rather than being declared solved.
+- Before deployment, run the full harness after any tuning, then visually smoke-test Synergy sigils/VFX at 1366×768 and one supported mobile viewport.
+- v0.9 is published from GitHub `main` and deployed through the existing Sites/vinext workflow.
 
 ## 11. Next-task protocol
 

@@ -1,8 +1,8 @@
 import { ITEMS, Trait, TRAIT_DETAILS, UNIT_MAP } from "./game-data";
 
 export const REPLAY_FORMAT = "pepepow.auto-battleground.replay" as const;
-export const REPLAY_VERSION = 4 as const;
-export const ENGINE_VERSION = "combat-balance-0.8.0";
+export const REPLAY_VERSION = 5 as const;
+export const ENGINE_VERSION = "combat-balance-0.9.0";
 
 export type OwnedUnit = {
   uid: string;
@@ -36,9 +36,13 @@ export type CombatUnit = {
   targetUid: string | null;
   forcedTargetUid: string | null;
   forcedTargetTicks: number;
+  healingReductionTicks: number;
+  feedbackTicks: number;
+  feedbackRate: number;
+  feedbackSourceUid: string | null;
 };
 
-export type BattleEventType = "move" | "attack" | "cast" | "projectile" | "damage" | "critical" | "heal" | "shield" | "stun" | "death";
+export type BattleEventType = "move" | "attack" | "cast" | "projectile" | "damage" | "critical" | "heal" | "shield" | "stun" | "control" | "death";
 export type BattleEvent = {
   id: string;
   tick: number;
@@ -144,10 +148,11 @@ function makeCombatUnit(unit: OwnedUnit, team: "player" | "enemy", counts: Recor
   if (role === "Guardian" && tier(counts, "Guardian")) armor += tier(counts, "Guardian") === 2 ? 34 : 18;
   if (role === "Ranger" && tier(counts, "Ranger")) attack *= tier(counts, "Ranger") === 2 ? 1.3 : 1.15;
   if (role === "Engineer" && tier(counts, "Engineer")) mana += tier(counts, "Engineer") === 2 ? 55 : 30;
+  if (def.id === "coil-ranger") mana += 25;
   if (role === "Brawler" && tier(counts, "Brawler")) hp *= tier(counts, "Brawler") === 2 ? 1.35 : 1.18;
   const maxHp = Math.round(hp);
   const position = unit.position ?? 0;
-  return { uid: unit.uid, unitId: unit.unitId, team, star: unit.star, position, spawnPosition: position, previousPosition: null, hp: maxHp, maxHp, mana, attack: Math.round(attack), armor: Math.round(armor), range: def.range, skillPower, itemIds: [...unit.itemIds], dead: false, action: "idle", shield: 0, stunned: 0, targetUid: null, forcedTargetUid: null, forcedTargetTicks: 0 };
+  return { uid: unit.uid, unitId: unit.unitId, team, star: unit.star, position, spawnPosition: position, previousPosition: null, hp: maxHp, maxHp, mana, attack: Math.round(attack), armor: Math.round(armor), range: def.range, skillPower, itemIds: [...unit.itemIds], dead: false, action: "idle", shield: 0, stunned: 0, targetUid: null, forcedTargetUid: null, forcedTargetTicks: 0, healingReductionTicks: 0, feedbackTicks: 0, feedbackRate: 0, feedbackSourceUid: null };
 }
 
 export function buildCombatSnapshot(army: OwnedUnit[], team: "player" | "enemy") {
@@ -212,8 +217,9 @@ export function chooseCombatTarget(attacker: CombatUnit, enemies: CombatUnit[], 
         ? Math.floor(a.spawnPosition / COLS) - Math.floor(b.spawnPosition / COLS)
         : Math.floor(b.spawnPosition / COLS) - Math.floor(a.spawnPosition / COLS)
       : 0;
+    const priority = (unit: CombatUnit) => UNIT_MAP[unit.unitId].traits[1] === "Ranger" ? 2 : UNIT_MAP[unit.unitId].traits.includes("Arcanist") ? 1 : 0;
     const rangerDelta = firstAssassinTarget
-      ? Number(UNIT_MAP[b.unitId].traits[1] === "Ranger") - Number(UNIT_MAP[a.unitId].traits[1] === "Ranger")
+      ? priority(b) - priority(a)
       : 0;
     const distanceDelta = gridDistance(attacker.position, a.position) - gridDistance(attacker.position, b.position);
     return backlineDelta || rangerDelta || distanceDelta || a.hp - b.hp || compareUid(a.uid, b.uid);
@@ -227,9 +233,13 @@ function damageAmount(attacker: CombatUnit, target: CombatUnit, armorReduction: 
 }
 
 function assassinCounterMultiplier(attacker: CombatUnit, target: CombatUnit, counts: Record<Trait, number>) {
-  if (UNIT_MAP[attacker.unitId].traits[1] !== "Assassin" || UNIT_MAP[target.unitId].traits[1] !== "Ranger") return 1;
+  if (UNIT_MAP[attacker.unitId].traits[1] !== "Assassin") return 1;
+  const ranger = UNIT_MAP[target.unitId].traits[1] === "Ranger";
+  const arcanist = UNIT_MAP[target.unitId].traits.includes("Arcanist");
+  if (!ranger && !arcanist) return 1;
   const assassin = tier(counts, "Assassin");
-  return assassin === 2 ? 1.45 : assassin === 1 ? 1.25 : 1;
+  if (ranger) return assassin === 2 ? 1.45 : assassin === 1 ? 1.25 : 1;
+  return assassin === 2 ? 1.65 : assassin === 1 ? 1.3 : 1;
 }
 
 function event(tick: number, type: BattleEventType, sourceUid: string, suffix: string, rest: Omit<BattleEvent, "id" | "tick" | "type" | "sourceUid"> = {}): BattleEvent {
@@ -249,7 +259,7 @@ export function simulateBattle(playerArmy: OwnedUnit[], enemyArmy: OwnedUnit[], 
     return { format: REPLAY_FORMAT, version: REPLAY_VERSION, engineVersion: ENGINE_VERSION, seed, winner, frames, survivors: units.filter((unit) => unit.team === winner).length, durationTicks: 0, stats: [...stats.values()] };
   }
 
-  const applyDamage = (tick: number, attacker: CombatUnit, target: CombatUnit, rawDamage: number, events: BattleEvent[], critical = false, skillId?: string) => {
+  const applyDamage = (tick: number, attacker: CombatUnit, target: CombatUnit, rawDamage: number, events: BattleEvent[], critical = false, skillId?: string, canReflect = true) => {
     const absorbed = Math.min(target.shield, rawDamage);
     if (absorbed) target.shield -= absorbed;
     const damage = Math.max(0, rawDamage - absorbed);
@@ -267,11 +277,30 @@ export function simulateBattle(playerArmy: OwnedUnit[], enemyArmy: OwnedUnit[], 
       }
       events.push(event(tick, "death", attacker.uid, target.uid, { targetUid: target.uid, to: target.position, skillId }));
     }
+    if (canReflect && !attacker.dead && attacker.feedbackTicks > 0 && attacker.feedbackRate > 0 && damage > 0) {
+      const source = units.find((unit) => unit.uid === attacker.feedbackSourceUid) ?? target;
+      applyDamage(tick, source, attacker, Math.max(1, Math.round(damage * attacker.feedbackRate)), events, false, "coil-ranger", false);
+    }
     return damage;
   };
 
+  const applyHealing = (tick: number, healer: CombatUnit, target: CombatUnit, requested: number, events: BattleEvent[], skillId?: string) => {
+    const reduced = target.healingReductionTicks > 0 ? Math.round(requested * 0.45) : requested;
+    const healed = Math.max(0, Math.min(reduced, target.maxHp - target.hp));
+    target.hp += healed;
+    target.action = "hit";
+    stats.get(healer.uid)!.healing += healed;
+    if (healed > 0) events.push(event(tick, "heal", healer.uid, `${target.uid}-${events.length}`, { targetUid: target.uid, to: target.position, amount: healed, skillId }));
+    return healed;
+  };
+
   for (let tick = 1; tick <= 70; tick += 1) {
-    for (const unit of units) if (!unit.dead) unit.action = "idle";
+    for (const unit of units) if (!unit.dead) {
+      unit.action = "idle";
+      if (unit.healingReductionTicks > 0) unit.healingReductionTicks -= 1;
+      if (unit.feedbackTicks > 0) unit.feedbackTicks -= 1;
+      if (unit.feedbackTicks <= 0) { unit.feedbackTicks = 0; unit.feedbackRate = 0; unit.feedbackSourceUid = null; }
+    }
     const living = units.filter((unit) => !unit.dead).sort((a, b) => (b.mana + b.attack) - (a.mana + a.attack) || compareUid(a.uid, b.uid));
     let message = "Both formations advance.";
     const events: BattleEvent[] = [];
@@ -311,6 +340,63 @@ export function simulateBattle(playerArmy: OwnedUnit[], enemyArmy: OwnedUnit[], 
           attacker.shield += amount; stats.get(attacker.uid)!.shielding += amount;
           events.push(event(tick, "shield", attacker.uid, String(events.length), { targetUid: attacker.uid, to: attacker.position, amount, skillId: def.id }));
           if (role === "Guardian") for (const enemy of enemies.filter((entry) => gridDistance(entry.position, attacker.position) <= 2)) { enemy.forcedTargetUid = attacker.uid; enemy.forcedTargetTicks = 2; }
+        } else if (def.id === "mire-chemist") {
+          const victims = enemies.filter((enemy) => gridDistance(enemy.position, target.position) <= 1);
+          events.push(event(tick, "projectile", attacker.uid, String(events.length), { targetUid: target.uid, from: attacker.position, to: target.position, skillId: def.id }));
+          for (const victim of victims.length ? victims : [target]) {
+            victim.healingReductionTicks = Math.max(victim.healingReductionTicks, 4);
+            events.push(event(tick, "control", attacker.uid, `${victim.uid}-${events.length}`, { targetUid: victim.uid, from: attacker.position, to: victim.position, skillId: def.id }));
+          }
+        } else if (def.id === "lantern-warden") {
+          const allies = units.filter((unit) => !unit.dead && unit.team === attacker.team);
+          const backline = allies.filter((ally) => UNIT_MAP[ally.unitId].range > 1 || ["Ranger", "Support", "Hacker"].includes(UNIT_MAP[ally.unitId].traits[1]) || UNIT_MAP[ally.unitId].traits.includes("Arcanist"));
+          const protectedAlly = [...(backline.length ? backline : allies)].sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp || compareUid(a.uid, b.uid))[0] ?? attacker;
+          const amount = Math.round(attacker.maxHp * 0.3 * attacker.skillPower);
+          protectedAlly.shield += amount;
+          protectedAlly.mana = Math.min(100, protectedAlly.mana + 20);
+          stats.get(attacker.uid)!.shielding += amount;
+          events.push(event(tick, "shield", attacker.uid, String(events.length), { targetUid: protectedAlly.uid, from: attacker.position, to: protectedAlly.position, amount, skillId: def.id }));
+        } else if (def.id === "signal-leech") {
+          const victim = [...enemies].sort((a, b) => b.mana - a.mana || b.attack - a.attack || compareUid(a.uid, b.uid))[0] ?? target;
+          const drained = Math.min(45, victim.mana);
+          victim.mana -= drained;
+          attacker.mana = Math.min(100, attacker.mana + Math.round(drained * 0.5));
+          events.push(event(tick, "projectile", attacker.uid, String(events.length), { targetUid: victim.uid, from: attacker.position, to: victim.position, skillId: def.id }));
+          events.push(event(tick, "control", attacker.uid, String(events.length), { targetUid: victim.uid, to: victim.position, amount: drained, skillId: def.id }));
+          const counter = assassinCounterMultiplier(attacker, victim, ownCounts);
+          applyDamage(tick, attacker, victim, Math.round(damageAmount(attacker, victim, tier(ownCounts, "Void") ? 18 : 0, false, random) * 1.2 * attacker.skillPower * counter), events, false, def.id);
+        } else if (def.id === "prism-hook") {
+          const victim = [...enemies].sort((a, b) => gridDistance(attacker.position, b.position) - gridDistance(attacker.position, a.position) || compareUid(a.uid, b.uid))[0] ?? target;
+          const occupied = new Set(units.filter((unit) => !unit.dead && unit.uid !== victim.uid).map((unit) => unit.position));
+          const destination = neighbors(victim.position).filter((position) => !occupied.has(position)).sort((a, b) => gridDistance(a, attacker.position) - gridDistance(b, attacker.position) || a - b)[0];
+          events.push(event(tick, "projectile", attacker.uid, String(events.length), { targetUid: victim.uid, from: attacker.position, to: victim.position, skillId: def.id }));
+          if (destination !== undefined && gridDistance(destination, attacker.position) < gridDistance(victim.position, attacker.position)) {
+            victim.previousPosition = victim.position;
+            victim.position = destination;
+          }
+          const counter = assassinCounterMultiplier(attacker, victim, ownCounts);
+          applyDamage(tick, attacker, victim, Math.round(damageAmount(attacker, victim, tier(ownCounts, "Void") ? 18 : 0, false, random) * 1.45 * attacker.skillPower * counter), events, false, def.id);
+          if (!victim.dead) {
+            victim.stunned = Math.max(victim.stunned, 1);
+            events.push(event(tick, "control", attacker.uid, String(events.length), { targetUid: victim.uid, to: victim.position, skillId: def.id }));
+          }
+        } else if (def.id === "rift-breaker") {
+          const brokenShield = target.shield;
+          target.shield = 0;
+          const counter = assassinCounterMultiplier(attacker, target, ownCounts);
+          const base = damageAmount(attacker, target, tier(ownCounts, "Void") ? 18 : 0, false, random);
+          const damage = Math.round((base * 1.5 + Math.min(attacker.attack, brokenShield * 0.35)) * attacker.skillPower * counter);
+          events.push(event(tick, "projectile", attacker.uid, String(events.length), { targetUid: target.uid, from: attacker.position, to: target.position, skillId: def.id }));
+          if (brokenShield > 0) events.push(event(tick, "control", attacker.uid, String(events.length), { targetUid: target.uid, to: target.position, amount: Math.round(brokenShield), skillId: def.id }));
+          applyDamage(tick, attacker, target, damage, events, false, def.id);
+        } else if (def.id === "coil-ranger") {
+          const victim = [...enemies].sort((a, b) => b.attack - a.attack || b.range - a.range || compareUid(a.uid, b.uid))[0] ?? target;
+          victim.feedbackTicks = Math.max(victim.feedbackTicks, 4);
+          victim.feedbackRate = Math.max(victim.feedbackRate, 0.28);
+          victim.feedbackSourceUid = attacker.uid;
+          events.push(event(tick, "projectile", attacker.uid, String(events.length), { targetUid: victim.uid, from: attacker.position, to: victim.position, skillId: def.id }));
+          events.push(event(tick, "control", attacker.uid, String(events.length), { targetUid: victim.uid, to: victim.position, skillId: def.id }));
+          applyDamage(tick, attacker, victim, Math.round(damageAmount(attacker, victim, tier(ownCounts, "Void") ? 18 : 0, false, random) * 1.1), events, false, def.id);
         } else if (role === "Support" || role === "Engineer") {
           const allies = units.filter((unit) => !unit.dead && unit.team === attacker.team).sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp);
           const healBoost = tier(ownCounts, "Support") === 2 ? 1.8 : tier(ownCounts, "Support") === 1 ? 1.4 : 1;
@@ -320,9 +406,7 @@ export function simulateBattle(playerArmy: OwnedUnit[], enemyArmy: OwnedUnit[], 
           for (const ally of chosen) {
             const healScale = manaWard ? 1.5 : role === "Support" ? 2.1 : 1.4;
             const requested = Math.round(attacker.attack * healScale * healBoost * attacker.skillPower);
-            const healed = Math.min(requested, ally.maxHp - ally.hp);
-            ally.hp += healed; ally.action = "hit"; stats.get(attacker.uid)!.healing += healed;
-            events.push(event(tick, "heal", attacker.uid, `${ally.uid}-${events.length}`, { targetUid: ally.uid, to: ally.position, amount: healed, skillId: def.id }));
+            applyHealing(tick, attacker, ally, requested, events, def.id);
             if (manaWard) ally.mana = Math.min(100, ally.mana + Math.round(20 * attacker.skillPower));
           }
         } else {
@@ -330,8 +414,10 @@ export function simulateBattle(playerArmy: OwnedUnit[], enemyArmy: OwnedUnit[], 
           const isArea = role === "Hacker" || role === "Brawler" || def.id === "volt-hacker";
           const areaRadius = def.id === "rune-blaster" ? 2 : 1;
           const targets = isGlobal ? enemies : isArea ? enemies.filter((enemy) => gridDistance(enemy.position, target.position) <= areaRadius) : [target];
+          let projectileFrom = attacker.position;
           for (const victim of targets.length ? targets : [target]) {
-            events.push(event(tick, "projectile", attacker.uid, `${victim.uid}-${events.length}`, { targetUid: victim.uid, from: attacker.position, to: victim.position, skillId: def.id }));
+            events.push(event(tick, "projectile", attacker.uid, `${victim.uid}-${events.length}`, { targetUid: victim.uid, from: projectileFrom, to: victim.position, skillId: def.id }));
+            if (def.id === "volt-hacker" || def.id === "storm-hacker") projectileFrom = victim.position;
             const counter = assassinCounterMultiplier(attacker, victim, ownCounts);
             const skillMultiplier = role === "Assassin" ? 2.25 : isGlobal ? 1.25 : def.id === "rune-blaster" ? 1.45 : def.id === "chrono-mage" ? 1.35 : 1.65;
             const skillDamage = Math.round(damageAmount(attacker, victim, tier(ownCounts, "Void") ? 18 : 0, false, random) * skillMultiplier * attacker.skillPower * counter);
@@ -353,13 +439,19 @@ export function simulateBattle(playerArmy: OwnedUnit[], enemyArmy: OwnedUnit[], 
         const counter = assassinCounterMultiplier(attacker, target, ownCounts);
         const damage = Math.round(damageAmount(attacker, target, tier(ownCounts, "Void") ? (tier(ownCounts, "Void") === 2 ? 30 : 15) : 0, assassinCrit, random) * counter);
         const dealt = applyDamage(tick, attacker, target, damage, events, assassinCrit);
+        if (def.id === "signal-leech" && !target.dead && target.mana > 0) {
+          const drained = Math.min(20, target.mana);
+          target.mana -= drained;
+          attacker.mana = Math.min(100, attacker.mana + Math.round(drained * .5));
+          events.push(event(tick, "control", attacker.uid, String(events.length), { targetUid: target.uid, to: target.position, amount: drained, skillId: def.id }));
+        }
+        if (attacker.dead) { message = `${UNIT_MAP[attacker.unitId].name} is destroyed by feedback.`; consumeForcedTarget(); continue; }
         const cyberTier = tier(ownCounts, "Cyber");
         attacker.mana = Math.min(100, attacker.mana + (cyberTier === 2 ? 42 : cyberTier === 1 ? 32 : 24));
         target.mana = Math.min(100, target.mana + 12);
         if (tier(ownCounts, "Underground")) {
-          const healed = Math.min(attacker.maxHp - attacker.hp, dealt * (tier(ownCounts, "Underground") === 2 ? 0.18 : 0.08));
-          attacker.hp += healed; stats.get(attacker.uid)!.healing += healed;
-          if (healed >= 1) events.push(event(tick, "heal", attacker.uid, String(events.length), { targetUid: attacker.uid, to: attacker.position, amount: Math.round(healed) }));
+          const requested = Math.round(dealt * (tier(ownCounts, "Underground") === 2 ? 0.18 : 0.08));
+          applyHealing(tick, attacker, attacker, requested, events);
         }
         if (role === "Hacker" && tier(ownCounts, "Hacker")) {
           const splash = enemies.find((enemy) => enemy.uid !== target.uid && gridDistance(enemy.position, target.position) <= 1);

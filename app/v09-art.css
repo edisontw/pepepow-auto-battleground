@@ -1,0 +1,109 @@
+/* v0.9 art-language pass: authored Synergy sigils and restrained, team-readable combat VFX. */
+.synergy-icon-mask {
+  display:block;
+  width:58%;
+  height:58%;
+  background:currentColor;
+  -webkit-mask-repeat:no-repeat;
+  mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+  mask-position:center;
+  -webkit-mask-size:contain;
+  mask-size:contain;
+  filter:drop-shadow(0 0 4px color-mix(in srgb,currentColor,transparent 35%));
+}
+
+.trait-gem::before,
+.synergy-sigil::before,
+.trait-archive-title>span::before { content:none !important; }
+
+.trait-gem,
+.synergy-sigil,
+.trait-archive-title>span {
+  color:var(--sigil,#d9f6ff);
+  border-color:color-mix(in srgb,var(--sigil,#65ccff),#fff 12%);
+  background:
+    radial-gradient(circle at 36% 28%,color-mix(in srgb,var(--sigil-accent,#89edff),transparent 42%),transparent 40%),
+    radial-gradient(circle,color-mix(in srgb,var(--sigil,#65ccff),#132945 64%),#07131f 72%);
+  box-shadow:inset 0 0 0 2px rgba(0,0,0,.43),0 0 11px color-mix(in srgb,var(--sigil,#65ccff),transparent 59%);
+}
+
+.left-panel .trait-gem { font-size:0; }
+.synergy-sigil .synergy-icon-mask { width:62%; height:62%; }
+.trait-archive-title>span { transform:none; border-radius:9px; }
+.trait-archive-title>span .synergy-icon-mask { width:60%; height:60%; }
+.detail-traits span { position:relative; padding-left:35px; min-height:38px; }
+.detail-traits .trait-gem {
+  position:absolute;
+  left:6px;
+  top:7px;
+  width:23px;
+  height:23px;
+  transform:none;
+  border-radius:50%;
+}
+
+/* One visual grammar per attack type. The projectile body communicates path; the endpoint communicates impact. */
+.projectile-layer>span {
+  --vfx:#edf9ff;
+  --vfx2:#fff;
+  height:2px;
+  filter:drop-shadow(0 0 4px var(--vfx));
+}
+.projectile-layer>span:before {
+  width:13px;
+  height:3px;
+  background:linear-gradient(90deg,transparent,var(--vfx2) 42%,var(--vfx));
+  box-shadow:0 0 6px var(--vfx);
+}
+.projectile-layer>span i { inset:-4px; border-top-width:1px; opacity:.52; }
+.projectile-layer>span:after { width:8px; height:8px; border-width:1px; box-shadow:0 0 7px var(--vfx); }
+
+.projectile-layer>span.team-player { --vfx:#55e7dd; --vfx2:#e9ffff; }
+.projectile-layer>span.team-enemy { --vfx:#ff746c; --vfx2:#ffe2dd; }
+.projectile-layer>span.vfx-single { height:2px; }
+.projectile-layer>span.vfx-single i { display:none; }
+
+.projectile-layer>span.vfx-piercing { height:6px; filter:drop-shadow(0 0 8px var(--vfx)); }
+.projectile-layer>span.vfx-piercing:before { width:22px; height:7px; }
+.projectile-layer>span.vfx-piercing i { inset:-7px; border-top-width:2px; }
+.projectile-layer>span.vfx-piercing:after { width:18px; height:18px; border-width:2px; }
+
+.projectile-layer>span.vfx-chain { height:3px; }
+.projectile-layer>span.vfx-chain i { display:block; border-top:2px dashed var(--vfx); transform:skewY(-7deg); opacity:.9; }
+.projectile-layer>span.vfx-chain:before { width:11px; height:4px; }
+
+.projectile-layer>span.vfx-area { height:1px; opacity:.7; }
+.projectile-layer>span.vfx-area:before { height:2px; }
+.projectile-layer>span.vfx-area:after {
+  right:-18px;
+  width:36px;
+  height:36px;
+  border:2px solid var(--vfx);
+  background:color-mix(in srgb,var(--vfx),transparent 88%);
+  box-shadow:0 0 12px color-mix(in srgb,var(--vfx),transparent 30%),inset 0 0 15px color-mix(in srgb,var(--vfx),transparent 70%);
+  animation-duration:.42s;
+}
+
+.projectile-layer>span.vfx-heal,
+.projectile-layer>span.team-player.vfx-heal { --vfx:#55e6bb; --vfx2:#e8fff7; }
+.projectile-layer>span.vfx-heal:after { width:26px; height:26px; border-color:#70f3ce; background:rgba(71,220,177,.12); }
+
+.projectile-layer>span.vfx-control { --vfx:#a98cff; --vfx2:#e9e2ff; }
+.projectile-layer>span.team-player.vfx-control { --vfx:#72dff5; --vfx2:#e4fbff; }
+.projectile-layer>span.team-enemy.vfx-control { --vfx:#c47aff; --vfx2:#ffe1ff; }
+.projectile-layer>span.vfx-control:after { border-radius:24%; transform:translateY(-50%) rotate(45deg) scale(.25); }
+
+.projectile-layer>span.vfx-shield { --vfx:#73dffd; --vfx2:#edfdff; }
+.projectile-layer>span.vfx-shield:after { width:22px; height:22px; border-radius:46% 46% 52% 52%; }
+
+.combat-float.control { color:#b997ff; letter-spacing:.04em; white-space:nowrap; }
+.combat-float.control.team-player { color:#73e7ee; }
+.combat-float.control.team-enemy { color:#ff7a8f; }
+.combat-float.heal { color:#69e9bd; }
+
+@media(max-width:600px) {
+  .projectile-layer>span.vfx-area:after { width:24px; height:24px; right:-12px; }
+  .projectile-layer>span.vfx-piercing { height:4px; }
+  .projectile-layer>span.vfx-piercing:before { height:5px; }
+}

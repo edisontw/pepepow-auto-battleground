@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { COST_COLORS, ITEMS, Trait, TRAIT_DETAILS, UNIT_MAP, UNITS, XP_TO_LEVEL } from "./game-data";
+import { COST_COLORS, ITEMS, SKILL_VFX, Trait, TRAIT_DETAILS, UNIT_MAP, UNITS, XP_TO_LEVEL } from "./game-data";
 import { BattleEvent, BattleFrame, BattleResult, BOARD_COLS, BOARD_ROWS, buildCombatSnapshot, createSeededRandom, ENGINE_VERSION, mixSeed, OwnedUnit, REPLAY_FORMAT, REPLAY_VERSION, SeededRandom, simulateBattle, UnitBattleStats } from "./battle-engine";
 import { applyXp, effectiveShopOdds, GAME_RULES, incomeFor, passiveXpForRound, resolveDropTarget } from "./game-rules";
 import { useAdaptivePerformance } from "./performance";
@@ -35,6 +35,17 @@ const DEPLOY_START = BOARD_COLS * 3;
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 const newStats = (): RunStats => ({ wins: 0, losses: 0, unitsBought: 0, rerolls: 0, goldEarned: 0, highestStar: 1 });
 const starText = (star: number) => "★".repeat(star);
+
+function SynergyIcon({ trait, className = "trait-gem" }: { trait: Trait; className?: string }) {
+  const detail = TRAIT_DETAILS[trait];
+  return <span className={className} data-trait={trait} style={{ "--sigil": detail.color, "--sigil-accent": detail.accent } as React.CSSProperties}><i className="synergy-icon-mask" style={{ WebkitMaskImage: `url(${detail.icon})`, maskImage: `url(${detail.icon})` }} /></span>;
+}
+
+function skillVfxClass(skillId?: string) {
+  if (!skillId) return "vfx-single";
+  const kind = SKILL_VFX[skillId] ?? "single";
+  return `skill-vfx-${skillId} vfx-${kind}`;
+}
 
 function completedUnitIds(units: OwnedUnit[]) {
   return new Set(units.filter((unit) => unit.star === 3).map((unit) => unit.unitId));
@@ -589,7 +600,7 @@ export default function Game() {
     const passiveXp = passiveXpForRound(round);
     const progression = applyXp(level, xp, passiveXp);
     setGold((value) => value + income.total); setStats((current) => ({ ...current, goldEarned: current.goldEarned + income.total }));
-    setAis((current) => advanceAICommanders(current, round + 1, createSeededRandom(mixSeed(sessionSeed, round + 1, 0xa1e0))));
+    setAis((current) => advanceAICommanders(current, round + 1, createSeededRandom(mixSeed(sessionSeed, round + 1, 0xa1e0)), deployed));
     setLevel(progression.level); setXp(progression.xp);
     if (!locked) setShop(rollShop(progression.level, units));
     setRound((value) => value + 1); setTimer(GAME_RULES.planningSeconds); setCombatFrame(null); setCombatResult(null); setOpponent(null); setRevealingEnemy(false); setPhase("planning");
@@ -650,7 +661,7 @@ export default function Game() {
       <section className="landing-card">
         <div className="brand-lockup"><img src="/pepepow-symbol.png" alt="PEPEPOW symbol" width="58" height="58" fetchPriority="high" /><div><span>PEPEPOW</span><small>TACTICAL EVOLUTION · v0.5</small></div></div>
         <div className="hero-copy"><p className="eyebrow">PREMIUM 2.5D · DETERMINISTIC COMBAT</p><h1>AUTO<br/><em>BATTLEGROUND</em></h1><p>Recruit a crew. Forge powerful synergies. Watch every strike, spell and tactical choice unfold — then inspect or replay the battle.</p></div>
-        <div className="feature-rail"><span><b>24</b> original units</span><span><b>13</b> traits</span><span><b>8</b> commanders</span><span><b>∞</b> evolving rounds</span></div>
+        <div className="feature-rail"><span><b>{UNITS.length}</b> original units</span><span><b>{Object.keys(TRAIT_DETAILS).length}</b> traits</span><span><b>7</b> commanders</span><span><b>∞</b> evolving rounds</span></div>
         <div className="difficulty-picker" aria-label="AI difficulty"><span>AI DIFFICULTY</span>{(["Easy", "Normal", "Hard"] as AIDifficulty[]).map((entry) => <button key={entry} className={difficulty === entry ? "active" : ""} onClick={() => setDifficulty(entry)} aria-pressed={difficulty === entry}>{entry.toUpperCase()}</button>)}</div>
         <div className="landing-actions"><button className="primary-action" onClick={startNew}>NEW EXPEDITION <span>→</span></button>{hasSave && <button className="secondary-action" onClick={continueRun}>CONTINUE RUN</button>}<button className="text-action" onClick={() => setShowGuide(true)}>HOW TO PLAY</button><button className="text-action" onClick={() => { setArchiveTab("units"); setShowArchive(true); }}>GAME ARCHIVE</button><button className="text-action" onClick={() => setShowBattleArchive(true)}>BATTLE ARCHIVE</button></div>
         <p className="level-zero">LEVEL 0 · PURE GAME · NO WALLET REQUIRED</p>
@@ -691,10 +702,10 @@ export default function Game() {
               return <div key={position} role="gridcell" tabIndex={position >= DEPLOY_START ? 0 : -1} data-drop-target={position >= DEPLOY_START && phase === "planning" ? `board:${position}` : undefined} className={`board-cell ${position >= DEPLOY_START ? "friendly" : "enemy"} ${(selectedUid || draggedUid) && position >= DEPLOY_START ? "available" : ""} ${dropTarget === `board:${position}` ? "drop-current" : ""} ${cellEvents.length ? "impact" : ""}`} onClick={() => deploySelected(position)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") deploySelected(position); }} aria-label={`Board cell ${position + 1}${unit ? `, ${UNIT_MAP[unit.unitId].name}` : ", empty"}`}>
                 <span className="tile-lines" />
                 {unit && <UnitToken unit={unit} selected={selectedUid === unit.uid} combat={combat} interactive={phase === "planning" && unit.position !== null} invalid={invalidDropUid === unit.uid} onDragStart={() => beginDrag(unit.uid)} onDragMove={updateDropTarget} onDragFinish={finishPointerDrag} onSelect={() => selectUnit(unit)} onInspect={() => inspectUnit(unit, combat)} />}
-                <CellEffects events={cellEvents} />
+                <CellEffects events={cellEvents} units={combatFrame?.units ?? []} />
               </div>;
             })}
-            {combatFrame && <ProjectileLayer events={combatFrame.events} />}
+            {combatFrame && <ProjectileLayer events={combatFrame.events} units={combatFrame.units} />}
             {phase === "battle" && <div className="battle-message">{battleLog[0]}</div>}
           </div>
 
@@ -734,28 +745,31 @@ export default function Game() {
   );
 }
 
-function CellEffects({ events }: { events: BattleEvent[] }) {
+function CellEffects({ events, units }: { events: BattleEvent[]; units: BattleFrame["units"] }) {
   return <div className="cell-effects" aria-hidden="true">{events.slice(-5).map((entry, index) => {
-    const label = entry.type === "heal" ? `+${entry.amount ?? 0}` : entry.type === "shield" ? `+${entry.amount ?? 0}` : entry.type === "stun" ? "STUN" : entry.type === "critical" ? `${entry.amount ?? 0}!` : entry.type === "damage" ? `-${entry.amount ?? 0}` : "";
-    return <span key={entry.id} className={`combat-float ${entry.type} ${entry.skillId ? `skill-vfx-${entry.skillId}` : ""}`} style={{ "--fx-index": index } as React.CSSProperties}>{label}<i /><i /><i /></span>;
+    const controlLabel = entry.skillId === "mire-chemist" ? "HEAL ↓" : entry.skillId === "signal-leech" ? "MANA ↓" : entry.skillId === "prism-hook" ? "PULL" : entry.skillId === "coil-ranger" ? "FEEDBACK" : entry.skillId === "rift-breaker" ? "SHIELD BREAK" : "CONTROL";
+    const label = entry.type === "heal" ? `+${entry.amount ?? 0}` : entry.type === "shield" ? `+${entry.amount ?? 0}` : entry.type === "stun" ? "STUN" : entry.type === "control" ? controlLabel : entry.type === "critical" ? `${entry.amount ?? 0}!` : entry.type === "damage" ? `-${entry.amount ?? 0}` : "";
+    const team = units.find((unit) => unit.uid === entry.sourceUid)?.team ?? "player";
+    return <span key={entry.id} className={`combat-float ${entry.type} team-${team} ${skillVfxClass(entry.skillId)}`} style={{ "--fx-index": index } as React.CSSProperties}>{label}<i /><i /><i /></span>;
   })}</div>;
 }
 
-function ProjectileLayer({ events }: { events: BattleEvent[] }) {
+function ProjectileLayer({ events, units }: { events: BattleEvent[]; units: BattleFrame["units"] }) {
   const projectiles = events.filter((entry) => entry.type === "projectile" && entry.from !== undefined && entry.to !== undefined);
   return <div className="projectile-layer" aria-hidden="true">{projectiles.map((entry) => {
     const from = entry.from!, to = entry.to!;
     const x1 = ((from % BOARD_COLS) + .5) / BOARD_COLS * 100, y1 = (Math.floor(from / BOARD_COLS) + .5) / BOARD_ROWS * 100;
     const x2 = ((to % BOARD_COLS) + .5) / BOARD_COLS * 100, y2 = (Math.floor(to / BOARD_COLS) + .5) / BOARD_ROWS * 100;
     const dx = x2 - x1, dy = (y2 - y1) * .75;
-    return <span key={entry.id} className={entry.skillId ? `skill-vfx-${entry.skillId}` : "basic-projectile"} style={{ "--x1": `${x1}%`, "--y1": `${y1}%`, "--length": `${Math.hypot(dx, dy)}%`, "--angle": `${Math.atan2(dy, dx) * 180 / Math.PI}deg` } as React.CSSProperties}><i /></span>;
+    const team = units.find((unit) => unit.uid === entry.sourceUid)?.team ?? "player";
+    return <span key={entry.id} className={`${entry.skillId ? skillVfxClass(entry.skillId) : "basic-projectile vfx-single"} team-${team}`} style={{ "--x1": `${x1}%`, "--y1": `${y1}%`, "--length": `${Math.hypot(dx, dy)}%`, "--angle": `${Math.atan2(dy, dx) * 180 / Math.PI}deg` } as React.CSSProperties}><i /></span>;
   })}</div>;
 }
 
 function SynergyList({ rows, compact = false, onOpenArchive }: { rows: SynergyRow[]; compact?: boolean; onOpenArchive: () => void }) {
   return <div className={`trait-list ${compact ? "compact" : ""}`}>
     {rows.length ? rows.map((row) => <button className={`trait tier-${row.tier} ${row.tier ? "active" : ""}`} key={row.trait} onClick={onOpenArchive}>
-      <span className="trait-gem">{row.trait.slice(0, 1)}</span>
+      <SynergyIcon trait={row.trait} />
       <span><b>{row.trait} <em>{TRAIT_DETAILS[row.trait].category}</em></b><small>{row.tier ? `TIER ${row.tier} · ${row.count}/${row.nextThreshold ?? row.threshold} · ${row.value}` : `${row.count}/${row.threshold} · ${row.value}`}</small></span>
       <strong>{row.tier ? `T${row.tier}` : row.count}</strong>
     </button>) : <p className="empty-copy">Deploy units to activate crew bonuses.</p>}
@@ -767,8 +781,8 @@ function SynergyTotems({ rows }: { rows: SynergyRow[] }) {
   if (!visible.length) return null;
   return <div className="synergy-totems" aria-label="Formation synergy progress">{visible.map((row) => {
     const goal = row.nextThreshold ?? row.threshold;
-    return <div className={`synergy-totem tier-${row.tier}`} key={row.trait} title={`${row.trait}: ${row.count}/${goal}${row.tier ? ` · ${row.value}` : ""}`}>
-      <span className="synergy-sigil">{row.trait.slice(0, 1)}</span>
+    return <div className={`synergy-totem tier-${row.tier}`} data-trait={row.trait} style={{ "--sigil": TRAIT_DETAILS[row.trait].color, "--sigil-accent": TRAIT_DETAILS[row.trait].accent } as React.CSSProperties} key={row.trait} title={`${row.trait}: ${row.count}/${goal}${row.tier ? ` · ${row.value}` : ""}`}>
+      <SynergyIcon trait={row.trait} className="synergy-sigil" />
       <b>{row.count}/{goal}</b>
       <i><em style={{ width: `${Math.min(100, row.count / Math.max(1, goal) * 100)}%` }} /></i>
     </div>;
@@ -857,7 +871,7 @@ function ReplayOverlay({ record, onClose }: { record: BattleRecord; onClose: () 
     return () => window.clearInterval(handle);
   }, [playing, speed, record]);
   const board = new Map([...frame.units].sort((a, b) => Number(b.dead) - Number(a.dead)).map((unit) => [unit.position, unit]));
-  return <div className="replay-overlay"><header><div><p>ROUND {record.round} REPLAY</p><h2>{record.opponent}</h2><small>{REPLAY_FORMAT} · v{record.result.version} · seed {record.result.seed}</small></div><button onClick={onClose}>CLOSE ×</button></header><div className="replay-stage"><div className="replay-board battle-board in-combat">{Array.from({ length: BOARD_COLS * BOARD_ROWS }, (_, position) => { const combat = board.get(position); const events = frame.events.filter((entry) => entry.to === position); return <div key={position} className={`board-cell ${position >= DEPLOY_START ? "friendly" : "enemy"} ${events.length ? "impact" : ""}`}><span className="tile-lines" />{combat && <UnitToken unit={{ uid: combat.uid, unitId: combat.unitId, star: combat.star, position: combat.position, itemIds: combat.itemIds }} combat={combat} />}<CellEffects events={events} /></div>; })}<ProjectileLayer events={frame.events} /></div><div className="replay-message">{frame.message}</div></div><footer><button onClick={() => setIndex(0)}>↶</button><button onClick={() => setPlaying((value) => !value)}>{playing ? "Ⅱ" : "▶"}</button><input aria-label="Replay timeline" type="range" min="0" max={Math.max(0, record.result.frames.length - 1)} value={index} onChange={(event) => { setIndex(Number(event.target.value)); setPlaying(false); }} /><span>{frame.tick}/{record.result.durationTicks}</span><button onClick={() => setSpeed((value) => value === 2 ? .5 : value === .5 ? 1 : 2)}>{speed}×</button></footer></div>;
+  return <div className="replay-overlay"><header><div><p>ROUND {record.round} REPLAY</p><h2>{record.opponent}</h2><small>{REPLAY_FORMAT} · v{record.result.version} · seed {record.result.seed}</small></div><button onClick={onClose}>CLOSE ×</button></header><div className="replay-stage"><div className="replay-board battle-board in-combat">{Array.from({ length: BOARD_COLS * BOARD_ROWS }, (_, position) => { const combat = board.get(position); const events = frame.events.filter((entry) => entry.to === position); return <div key={position} className={`board-cell ${position >= DEPLOY_START ? "friendly" : "enemy"} ${events.length ? "impact" : ""}`}><span className="tile-lines" />{combat && <UnitToken unit={{ uid: combat.uid, unitId: combat.unitId, star: combat.star, position: combat.position, itemIds: combat.itemIds }} combat={combat} />}<CellEffects events={events} units={frame.units} /></div>; })}<ProjectileLayer events={frame.events} units={frame.units} /></div><div className="replay-message">{frame.message}</div></div><footer><button onClick={() => setIndex(0)}>↶</button><button onClick={() => setPlaying((value) => !value)}>{playing ? "Ⅱ" : "▶"}</button><input aria-label="Replay timeline" type="range" min="0" max={Math.max(0, record.result.frames.length - 1)} value={index} onChange={(event) => { setIndex(Number(event.target.value)); setPlaying(false); }} /><span>{frame.tick}/{record.result.durationTicks}</span><button onClick={() => setSpeed((value) => value === 2 ? .5 : value === .5 ? 1 : 2)}>{speed}×</button></footer></div>;
 }
 
 function ShopCard({ unitId, affordable, blocked, reminder, onBuy }: { unitId: string; affordable: boolean; blocked?: boolean; reminder?: string; onBuy: () => void }) {
@@ -882,12 +896,12 @@ function UnitDetail({ unit, combat, battleStat, activeSynergies = [], refund, hi
   const def = UNIT_MAP[unit.unitId];
   const scale = unit.star === 1 ? 1 : unit.star === 2 ? 1.75 : 3.05;
   const equipment = unit.itemIds.map((id) => ITEMS.find((item) => item.id === id)).filter(Boolean);
-  return <aside className={`unit-detail ${historical ? "archive-unit-detail" : ""}`} role="dialog" aria-label={`${def.name} unit information`} onClick={(event) => event.stopPropagation()} style={{ "--unit": def.color, "--rarity": COST_COLORS[def.cost] } as React.CSSProperties}><button className="detail-close" onClick={onClose} aria-label="Close unit details">×</button><div className="detail-heading"><span><img src={`/units/${def.id}.webp`} alt="" draggable={false} /></span><div><small>{historical ? "HISTORICAL ENEMY SNAPSHOT" : combat?.team === "enemy" ? "ENEMY UNIT" : unit.position === null ? "BENCH UNIT" : "DEPLOYED UNIT"}</small><h3>{def.name}</h3><b>{starText(unit.star)} · {def.traits[0]} Faction / {def.traits[1]} Class</b></div><em>● {def.cost}</em></div><p className="skill-copy"><strong>{def.skill}</strong>{def.skillText}</p><p className="targeting-copy">{targetingText(def.id)}</p><div className="detail-stats six"><span><small>HEALTH</small><b>{combat ? `${Math.round(combat.hp)}/${combat.maxHp}` : Math.round(def.hp * scale)}</b></span><span><small>ATTACK</small><b>{combat ? combat.attack : Math.round(def.attack * scale)}</b></span><span><small>ARMOR</small><b>{combat ? combat.armor : def.armor}</b></span><span><small>RANGE</small><b>{def.range}</b></span><span><small>MANA</small><b>{combat ? `${Math.round(combat.mana)}/100` : "0/100"}</b></span><span><small>ATTACK SPEED</small><b>1 / TICK</b></span></div><div className="detail-traits">{def.traits.map((trait) => <span key={trait}><b>{trait}</b><small>{TRAIT_DETAILS[trait].category} · thresholds {TRAIT_DETAILS[trait].thresholds.join(" / ")}</small></span>)}</div>{activeSynergies.length > 0 && <div className="detail-buffs"><small>ACTIVE TEAM BUFFS</small>{activeSynergies.map((row) => <span key={row.trait}><b>{row.trait} T{row.tier}</b>{row.value}</span>)}</div>}{combat && <div className="status-chips">{combat.shield > 0 && <span>Shield +{Math.round(combat.shield)}</span>}{combat.stunned > 0 && <span>Stunned · {combat.stunned} tick{combat.stunned === 1 ? "" : "s"}</span>}</div>}{battleStat && <div className="detail-performance"><small>{historical ? "RECORDED COMBAT" : "CURRENT BATTLE"}</small><span>Damage {Math.round(battleStat.damageDealt)}</span><span>Healing {Math.round(battleStat.healing)}</span><span>Damage Taken {Math.round(battleStat.damageTaken)}</span></div>}<div className="detail-gear"><small>EQUIPMENT</small>{equipment.length ? equipment.map((item) => <span key={item!.id}>{item!.icon} <b>{item!.name}</b> · {item!.text}</span>) : <span>No equipment attached.</span>}</div>{onSell && <button className="detail-sell" onClick={onSell}>SELL · +{refund} GOLD</button>}{onArchive && <button className="detail-link" onClick={onArchive}>OPEN FULL GAME ARCHIVE →</button>}</aside>;
+  return <aside className={`unit-detail ${historical ? "archive-unit-detail" : ""}`} role="dialog" aria-label={`${def.name} unit information`} onClick={(event) => event.stopPropagation()} style={{ "--unit": def.color, "--rarity": COST_COLORS[def.cost] } as React.CSSProperties}><button className="detail-close" onClick={onClose} aria-label="Close unit details">×</button><div className="detail-heading"><span><img src={`/units/${def.id}.webp`} alt="" draggable={false} /></span><div><small>{historical ? "HISTORICAL ENEMY SNAPSHOT" : combat?.team === "enemy" ? "ENEMY UNIT" : unit.position === null ? "BENCH UNIT" : "DEPLOYED UNIT"}</small><h3>{def.name}</h3><b>{starText(unit.star)} · {def.traits[0]} Faction / {def.traits[1]} Class</b></div><em>● {def.cost}</em></div><p className="skill-copy"><strong>{def.skill}</strong>{def.skillText}</p><p className="targeting-copy">{targetingText(def.id)}</p><div className="detail-stats six"><span><small>HEALTH</small><b>{combat ? `${Math.round(combat.hp)}/${combat.maxHp}` : Math.round(def.hp * scale)}</b></span><span><small>ATTACK</small><b>{combat ? combat.attack : Math.round(def.attack * scale)}</b></span><span><small>ARMOR</small><b>{combat ? combat.armor : def.armor}</b></span><span><small>RANGE</small><b>{def.range}</b></span><span><small>MANA</small><b>{combat ? `${Math.round(combat.mana)}/100` : "0/100"}</b></span><span><small>ATTACK SPEED</small><b>1 / TICK</b></span></div><div className="detail-traits">{def.traits.map((trait) => <span key={trait}><SynergyIcon trait={trait} /><b>{trait}</b><small>{TRAIT_DETAILS[trait].category} · thresholds {TRAIT_DETAILS[trait].thresholds.join(" / ")}</small></span>)}</div>{activeSynergies.length > 0 && <div className="detail-buffs"><small>ACTIVE TEAM BUFFS</small>{activeSynergies.map((row) => <span key={row.trait}><b>{row.trait} T{row.tier}</b>{row.value}</span>)}</div>}{combat && <div className="status-chips">{combat.shield > 0 && <span>Shield +{Math.round(combat.shield)}</span>}{combat.stunned > 0 && <span>Stunned · {combat.stunned} tick{combat.stunned === 1 ? "" : "s"}</span>}{combat.healingReductionTicks > 0 && <span>Healing reduced · {combat.healingReductionTicks}</span>}{combat.feedbackTicks > 0 && <span>Feedback marked · {combat.feedbackTicks}</span>}</div>}{battleStat && <div className="detail-performance"><small>{historical ? "RECORDED COMBAT" : "CURRENT BATTLE"}</small><span>Damage {Math.round(battleStat.damageDealt)}</span><span>Healing {Math.round(battleStat.healing)}</span><span>Damage Taken {Math.round(battleStat.damageTaken)}</span></div>}<div className="detail-gear"><small>EQUIPMENT</small>{equipment.length ? equipment.map((item) => <span key={item!.id}>{item!.icon} <b>{item!.name}</b> · {item!.text}</span>) : <span>No equipment attached.</span>}</div>{onSell && <button className="detail-sell" onClick={onSell}>SELL · +{refund} GOLD</button>}{onArchive && <button className="detail-link" onClick={onArchive}>OPEN FULL GAME ARCHIVE →</button>}</aside>;
 }
 
 function Archive({ initialTab, onClose }: { initialTab: ArchiveTab; onClose: () => void }) {
   const [tab, setTab] = useState<ArchiveTab>(initialTab);
-  return <div className="modal-backdrop" onClick={onClose}><section className="modal roster-modal archive-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}>×</button><p className="eyebrow">GAME ARCHIVE</p><h2>Units, synergies & equipment</h2><div className="archive-tabs"><button className={tab === "units" ? "active" : ""} onClick={() => setTab("units")}>24 UNITS</button><button className={tab === "traits" ? "active" : ""} onClick={() => setTab("traits")}>13 SYNERGIES</button><button className={tab === "items" ? "active" : ""} onClick={() => setTab("items")}>8 ITEMS</button></div>{tab === "units" && <div className="roster-grid detailed">{UNITS.map((unit) => <article key={unit.id} style={{ "--unit": unit.color, "--rarity": COST_COLORS[unit.cost] } as React.CSSProperties}><span><img src={`/units/${unit.id}.webp`} alt="" loading="lazy" /></span><div><b>{unit.name}</b><small>{unit.traits.join(" · ")}</small><p><strong>{unit.skill}</strong> — {unit.skillText}</p><dl><div><dt>HP</dt><dd>{unit.hp}</dd></div><div><dt>ATK</dt><dd>{unit.attack}</dd></div><div><dt>ARM</dt><dd>{unit.armor}</dd></div><div><dt>RNG</dt><dd>{unit.range}</dd></div></dl></div><em>● {unit.cost}</em></article>)}</div>}{tab === "traits" && <div className="trait-archive">{(Object.entries(TRAIT_DETAILS) as [Trait, (typeof TRAIT_DETAILS)[Trait]][]).map(([trait, detail]) => <article key={trait}><div className="trait-archive-title"><span>{trait.slice(0, 1)}</span><div><small>{detail.category} · {detail.appliesTo}</small><b>{trait}</b></div></div><p>{detail.summary}</p><div className="tier-row"><span><b>{detail.thresholds[0]}</b>{detail.tiers[0]}</span><span><b>{detail.thresholds[1]}</b>{detail.tiers[1]}</span></div><small className="members">UNITS · {UNITS.filter((unit) => unit.traits.includes(trait)).map((unit) => unit.name).join(" · ")}</small></article>)}</div>}{tab === "items" && <div className="gear-archive">{ITEMS.map((item) => <article key={item.id}><span>{item.icon}</span><div><b>{item.name}</b><p>{item.text}</p><small>Drops from neutral and boss victories · Stackable · Maximum 2 items per unit</small></div></article>)}</div>}<p className="archive-note">Upgrade scaling: ★★ units use 1.75× base Health and Attack; ★★★ units use 3.05×. Equipment and active synergies are applied afterward.</p></section></div>;
+  return <div className="modal-backdrop" onClick={onClose}><section className="modal roster-modal archive-modal" onClick={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose}>×</button><p className="eyebrow">GAME ARCHIVE</p><h2>Units, synergies & equipment</h2><div className="archive-tabs"><button className={tab === "units" ? "active" : ""} onClick={() => setTab("units")}>{UNITS.length} UNITS</button><button className={tab === "traits" ? "active" : ""} onClick={() => setTab("traits")}>{Object.keys(TRAIT_DETAILS).length} SYNERGIES</button><button className={tab === "items" ? "active" : ""} onClick={() => setTab("items")}>{ITEMS.length} ITEMS</button></div>{tab === "units" && <div className="roster-grid detailed">{UNITS.map((unit) => <article key={unit.id} style={{ "--unit": unit.color, "--rarity": COST_COLORS[unit.cost] } as React.CSSProperties}><span><img src={`/units/${unit.id}.webp`} alt="" loading="lazy" /></span><div><b>{unit.name}</b><small>{unit.traits.join(" · ")}</small><p><strong>{unit.skill}</strong> — {unit.skillText}</p><dl><div><dt>HP</dt><dd>{unit.hp}</dd></div><div><dt>ATK</dt><dd>{unit.attack}</dd></div><div><dt>ARM</dt><dd>{unit.armor}</dd></div><div><dt>RNG</dt><dd>{unit.range}</dd></div></dl></div><em>● {unit.cost}</em></article>)}</div>}{tab === "traits" && <div className="trait-archive">{(Object.entries(TRAIT_DETAILS) as [Trait, (typeof TRAIT_DETAILS)[Trait]][]).map(([trait, detail]) => <article key={trait}><div className="trait-archive-title"><SynergyIcon trait={trait} /><div><small>{detail.category} · {detail.appliesTo}</small><b>{trait}</b></div></div><p>{detail.summary}</p><div className="tier-row"><span><b>{detail.thresholds[0]}</b>{detail.tiers[0]}</span><span><b>{detail.thresholds[1]}</b>{detail.tiers[1]}</span></div><small className="members">UNITS · {UNITS.filter((unit) => unit.traits.includes(trait)).map((unit) => unit.name).join(" · ")}</small></article>)}</div>}{tab === "items" && <div className="gear-archive">{ITEMS.map((item) => <article key={item.id}><span>{item.icon}</span><div><b>{item.name}</b><p>{item.text}</p><small>Drops from neutral and boss victories · Stackable · Maximum 2 items per unit</small></div></article>)}</div>}<p className="archive-note">Upgrade scaling: ★★ units use 1.75× base Health and Attack; ★★★ units use 3.05×. Equipment and active synergies are applied afterward.</p></section></div>;
 }
 
 function ResultOverlay({ result, pve, damage, passiveXp, onReport, onNext }: { result: BattleResult | null; pve: boolean; damage: number; passiveXp: number; onReport: () => void; onNext: () => void }) {

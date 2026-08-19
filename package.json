@@ -11,6 +11,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint app tests --ignore-pattern .next --ignore-pattern dist",
+    "balance:matrix": "node --import tsx scripts/ai-matchup-matrix.ts",
     "dev:sites": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "build:sites": "bash scripts/build-verified.sh",
     "start:sites": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",

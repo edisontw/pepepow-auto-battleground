@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { advanceAICommanders, aiStrategySnapshot, assertAILegal, createAICommanders, ownedBaseCopies, planAI } from "../app/ai-engine";
+import { advanceAICommanders, aiStrategySnapshot, analyzePublicBoard, assertAILegal, createAICommanders, ownedBaseCopies, planAI } from "../app/ai-engine";
 import { createSeededRandom, mixSeed, OwnedUnit } from "../app/battle-engine";
 
 test("owned-copy reminders count upgraded pieces as base copies", () => {
@@ -93,4 +93,24 @@ test("Hard AI converts the same legal economy into stronger active-synergy plann
   const normal = totalSynergy("Normal");
   const hard = totalSynergy("Hard");
   assert.ok(hard > normal * 1.05, `Hard synergy planning should materially outperform Normal (${hard} vs ${normal})`);
+});
+
+test("Hard AI scouts public carries and shifts Assassin deployment toward their side", () => {
+  const base = createAICommanders("Hard", createSeededRandom(710))[0];
+  const roster: OwnedUnit[] = [
+    { uid: "assassin", unitId: "cave-stalker", star: 2, position: null, itemIds: [] },
+    { uid: "guard", unitId: "iron-bulwark", star: 2, position: null, itemIds: [] },
+    { uid: "ranger", unitId: "prism-gunner", star: 2, position: null, itemIds: [] },
+    { uid: "support", unitId: "lantern-warden", star: 2, position: null, itemIds: [] },
+  ];
+  const playerBoard: OwnedUnit[] = [
+    { uid: "p1", unitId: "rift-sniper", star: 2, position: 40, itemIds: [] },
+    { uid: "p2", unitId: "prism-gunner", star: 2, position: 41, itemIds: [] },
+    { uid: "p3", unitId: "chrono-mage", star: 2, position: 42, itemIds: [] },
+  ];
+  const threat = analyzePublicBoard(playerBoard);
+  assert.equal(threat.backlineCarrySide, "left");
+  const planned = planAI({ ...base, level: 4, gold: 0, shop: [], units: roster }, 10, createSeededRandom(711), false, { playerBoard });
+  const assassin = planned.units.find((unit) => unit.uid === "assassin");
+  assert.ok(assassin?.position !== null && assassin!.position! % 8 <= 2, `Assassin should pressure the left carry lane, got ${assassin?.position}`);
 });

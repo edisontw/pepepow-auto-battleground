@@ -5,6 +5,7 @@ import "./v06-overrides.css";
 import "./v07-overrides.css";
 import "./v08-overrides.css";
 import "./v08-fixes.css";
+import "./v09-art.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,7 +19,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PEPEPOW Auto Battleground",
-  description: "PEPEPOW Auto Battleground v0.8 — a premium 2.5D single-player auto battler with deterministic replays, battle statistics, adaptive performance, and evolving AI commanders.",
+  description: "PEPEPOW Auto Battleground v0.9 — a premium realistic 2.5D auto battler with unified character art, readable spell language, deterministic replays, and adaptive AI commanders.",
   other: {
     "codex-preview": "development",
   },
