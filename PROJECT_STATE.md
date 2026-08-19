@@ -66,6 +66,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Player and enemy pieces have restrained team distinction: player green-cyan edge/glow cues and enemy red-coral edge/glow/star cues while HP stays green for both.
 - Desktop Board-corner synergy totems remain hidden; mobile totems stay outside playable cells.
 - Every faction/class has an authored SVG sigil under `public/synergies/`, reused in the Synergy list, mobile indicators, Unit Info and Game Archive.
+- The in-game `HOW TO PLAY` manual is updated for v0.9 with Synergy sigils, the six counter units, combat-effect colors, Assassin targeting and adaptive Hard-AI behavior.
 
 ## 6. Replay / responsive presentation
 
