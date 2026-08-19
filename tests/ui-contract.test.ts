@@ -22,6 +22,23 @@ test("unit artwork cannot trigger iOS image callouts during long press", () => {
   assert.match(css, /\.unit-token img \{[^}]*pointer-events:none/);
 });
 
+test("mobile formation editing supports tap-to-move without touch inspection popups", () => {
+  assert.match(game, /if \(event\.pointerType === "mouse"\)/);
+  assert.match(game, /moveUnit\(selected\.uid, unit\.position\)/);
+  assert.match(game, /onClick=\{\(\) => \{ if \(!unit\) tapBenchSlot\(index\); \}\}/);
+  assert.match(game, /className="mobile-move-copy">TAP UNIT \/ CELL/);
+  assert.match(game, /<button onClick=\{\(\) => inspectUnit\(selectedUnit\)\}>INFO<\/button>/);
+  assert.match(v09, /\.drag-ghost \{[^}]*width:50px;[^}]*transform:translate\(-50%,-128%\)/);
+  assert.match(v09, /\.unit-detail:not\(\.archive-unit-detail\) \{[^}]*bottom:calc\(var\(--shop-h\) \+ 3px\);[^}]*max-height:45dvh/);
+});
+
+test("mobile Shop keeps all five recruits visible with faction and class labels", () => {
+  assert.match(game, /data-trait=\{trait\} className=\{index === 0 \? "faction" : index === 1 \? "class"/);
+  assert.match(v09, /\.shop-cards \{ grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(v09, /\.shop-info>div \{[^}]*display:grid;[^}]*grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
+  assert.match(v09, /\.shop-info>div small \{[^}]*display:block/);
+});
+
 test("low-height desktop shop stretches inside its actual grid track", () => {
   assert.match(css, /grid-template-rows:minmax\(0,1fr\)/);
   assert.match(css, /@media \(max-height:820px\)[\s\S]*?\.shop-card \{ height:auto;/);

@@ -83,6 +83,7 @@
 .detail-buffs span { align-items:start; line-height:1.35; }
 .detail-gear { padding-top:9px; border-top:1px solid rgba(255,255,255,.06); }
 .detail-sell { min-height:42px; }
+.mobile-move-copy { display:none; }
 
 /* Only meaningful endpoint events light a cell; color communicates the event family. */
 .board-cell.impact-heal:after {
@@ -198,7 +199,32 @@
   .projectile-layer>span.vfx-area:after { width:24px; height:24px; right:-12px; }
   .projectile-layer>span.vfx-piercing { height:4px; }
   .projectile-layer>span.vfx-piercing:before { height:5px; }
-  .unit-detail { top:calc(var(--header-h) + 4px); right:6px; bottom:6px; left:6px; width:auto; padding:14px; border-radius:10px; }
+  .game-shell { --shop-h:140px; }
+  .arena-panel { grid-template-rows:22px auto 44px 32px; gap:2px; padding-bottom:38px; }
+  .battle-board { width:calc(100% + 4px); max-width:none; margin:2px -2px 4px; aspect-ratio:8/7; }
+  .board-cell { touch-action:manipulation; }
+  .move-mode .board-cell.friendly.available {
+    border-color:rgba(116,239,176,.72);
+    background:linear-gradient(145deg,rgba(52,148,96,.42),rgba(7,18,12,.34));
+    box-shadow:inset 0 0 0 2px rgba(116,239,176,.34),0 0 8px rgba(91,230,150,.15);
+  }
+  .move-mode .board-cell.friendly.available:before { content:""; position:absolute; inset:38%; z-index:1; border-radius:50%; background:rgba(125,244,178,.42); box-shadow:0 0 8px rgba(91,231,151,.48); pointer-events:none; }
+  .move-mode .unit-token.selected { transform:translateY(-8%) scale(1.14); box-shadow:inset 0 0 0 3px #f0c456,0 0 18px rgba(240,196,86,.66); }
+
+  .move-mode .notice-bar { border:1px solid rgba(239,196,86,.42); background:linear-gradient(90deg,rgba(40,32,10,.96),rgba(8,14,10,.96)); padding:2px 3px; overflow:visible; }
+  .move-mode .notice-copy,.move-mode .notice-dot { display:none; }
+  .move-mode .selection-actions { width:100%; margin:0; display:grid; grid-template-columns:1.15fr .58fr .92fr .82fr; gap:3px; }
+  .move-mode .selection-actions .mobile-move-copy { display:grid; place-items:center; color:#f3d06d; font:800 6.5px/1.1 var(--font-geist-mono),monospace; text-align:center; white-space:normal; }
+  .move-mode .selection-actions button { min-width:0; min-height:27px; padding:3px 2px; border-color:rgba(239,196,86,.32); font-size:6px; white-space:nowrap; }
+  .move-mode .selection-actions button:first-of-type { color:#9edfff; border-color:rgba(90,196,235,.38); }
+
+  .drag-ghost { width:50px; height:58px; transform:translate(-50%,-128%); opacity:.82; filter:drop-shadow(0 7px 6px #000); }
+  .drag-ghost img { width:48px; height:50px; }
+  .drag-ghost span { display:none; }
+  .is-dragging .mobile-status-dock { opacity:.24; }
+  .is-dragging .shop-bar { opacity:.42; }
+
+  .unit-detail:not(.archive-unit-detail) { top:auto; right:4px; bottom:calc(var(--shop-h) + 3px); left:4px; width:auto; max-height:45dvh; padding:13px; border-radius:13px 13px 3px 3px; box-shadow:0 -20px 52px rgba(0,0,0,.88); }
   .detail-heading { grid-template-columns:52px minmax(0,1fr) auto; gap:9px; }
   .detail-heading>span { width:50px; height:56px; }
   .detail-heading h3 { font-size:17px; }
@@ -213,4 +239,20 @@
   .battle-message strong { font-size:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .battle-message small { display:none; }
   .combat-float { font-size:8px; }
+
+  .shop-bar { grid-template-rows:80px 38px; }
+  .shop-market { grid-template-rows:14px minmax(0,1fr); }
+  .shop-cards { grid-template-columns:repeat(5,minmax(0,1fr)); gap:3px; overflow:hidden; }
+  .shop-card { height:64px; min-width:0; grid-template-columns:1fr; grid-template-rows:32px 32px; touch-action:manipulation; }
+  .shop-art { grid-column:1; grid-row:1; min-width:0; }
+  .shop-art img { width:100%; height:100%; object-fit:contain; }
+  .shop-info { grid-column:1; grid-row:2; min-width:0; padding:2px 2px 1px; display:grid; grid-template-rows:8px minmax(0,1fr); gap:1px; }
+  .shop-card .shop-info>b { font-size:6.5px; line-height:1; text-align:center; }
+  .shop-info>div { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-auto-rows:8px; gap:1px 2px; overflow:hidden; }
+  .shop-info>div small { min-width:0; display:block; padding:1px 2px; overflow:hidden; border:1px solid color-mix(in srgb,var(--sigil,#7fcfa0),transparent 55%); border-radius:2px; color:color-mix(in srgb,var(--sigil,#b7e3c3),#fff 18%); background:color-mix(in srgb,var(--sigil,#2d7043),transparent 86%); font:700 5px/1 var(--font-geist-mono),monospace; text-align:center; white-space:nowrap; text-overflow:ellipsis; }
+  .shop-info>div .bonus-trait { grid-column:1/-1; justify-self:center; max-width:90%; padding-inline:4px; }
+  .shop-info p { display:none; }
+  .shop-card>strong { top:2px; right:2px; padding:1px 2px; background:rgba(4,7,5,.82); font-size:6.5px; }
+  .shop-card>mark { font-size:5.5px; }
+  .shop-controls button,.shop-controls button:first-child,.battle-button { min-height:38px; height:38px; }
 }

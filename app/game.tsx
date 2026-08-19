@@ -189,11 +189,13 @@ function UnitToken({ unit, selected, compact, combat, interactive, invalid, onSe
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     const state = { id: event.pointerId, x: event.clientX, y: event.clientY, dragging: false, inspected: false, timer: 0 };
-    state.timer = window.setTimeout(() => {
-      if (!press.current || press.current.dragging) return;
-      press.current.inspected = true;
-      onInspect?.();
-    }, GAME_RULES.longPressMs);
+    if (event.pointerType === "mouse") {
+      state.timer = window.setTimeout(() => {
+        if (!press.current || press.current.dragging) return;
+        press.current.inspected = true;
+        onInspect?.();
+      }, GAME_RULES.longPressMs);
+    }
     press.current = state;
   };
   const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -221,7 +223,7 @@ function UnitToken({ unit, selected, compact, combat, interactive, invalid, onSe
     clearPress();
   };
   return (
-    <button className={`unit-token cost-${def.cost} star-${unit.star} ${selected ? "selected" : ""} ${compact ? "compact" : ""} ${interactive ? "interactive" : ""} ${invalid ? "invalid-return" : ""} ${combat?.team ?? "player"} ${combat?.dead ? "dead" : ""} action-${combat?.action ?? "idle"} ${combat?.shield ? "shielded" : ""} ${combat?.stunned ? "stunned" : ""}`} style={{ "--unit": def.color } as React.CSSProperties} onClick={(event) => event.stopPropagation()} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={(event) => { event.stopPropagation(); if (press.current?.dragging) onDragFinish?.(-1, -1); clearPress(); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onInspect?.(); }} onKeyDown={(event) => { if (event.key.toLowerCase() === "i") onInspect?.(); }} aria-label={`${def.name}, ${unit.star} star. Tap to select, hold for details${interactive ? ", drag to move" : ""}.`}>
+    <button className={`unit-token cost-${def.cost} star-${unit.star} ${selected ? "selected" : ""} ${compact ? "compact" : ""} ${interactive ? "interactive" : ""} ${invalid ? "invalid-return" : ""} ${combat?.team ?? "player"} ${combat?.dead ? "dead" : ""} action-${combat?.action ?? "idle"} ${combat?.shield ? "shielded" : ""} ${combat?.stunned ? "stunned" : ""}`} style={{ "--unit": def.color } as React.CSSProperties} onClick={(event) => event.stopPropagation()} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={(event) => { event.stopPropagation(); if (press.current?.dragging) onDragFinish?.(-1, -1); clearPress(); }} onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onInspect?.(); }} onKeyDown={(event) => { if (event.key.toLowerCase() === "i") onInspect?.(); }} aria-label={`${def.name}, ${unit.star} star. Tap to select${interactive ? ", then tap another unit or cell to move; drag is also available" : ""}.`}>
       <span className="unit-aura" />
       {compact && <span className="piece-base"><i className="class-emblem">{def.traits[1].slice(0, 1)}</i><i className="race-emblem">{def.traits[0].slice(0, 1)}</i></span>}
       <span className="unit-art"><img src={`/units/${def.id}.webp`} alt="" draggable={false} loading={compact ? "lazy" : "eager"} decoding="async" /><i>{def.icon}</i></span>
@@ -449,7 +451,31 @@ export default function Game() {
       setNotice(`${ITEMS.find((item) => item.id === selectedItem)?.name} equipped to ${UNIT_MAP[unit.unitId].name}.`);
       setSelectedItem(null); tone(720, .16, "triangle"); return;
     }
-    setSelectedUid(selectedUid === unit.uid ? null : unit.uid);
+    setInspectedUnit(null); setInspectedCombat(null);
+    const selected = units.find((entry) => entry.uid === selectedUid);
+    if (selected && selected.uid !== unit.uid) {
+      if (unit.position !== null) {
+        moveUnit(selected.uid, unit.position);
+        setNotice(`${UNIT_MAP[selected.unitId].name} swapped with ${UNIT_MAP[unit.unitId].name}.`);
+        return;
+      }
+      if (selected.position !== null) {
+        const boardPosition = selected.position;
+        setUnits((current) => current.map((entry) => entry.uid === selected.uid ? { ...entry, position: null } : entry.uid === unit.uid ? { ...entry, position: boardPosition } : entry));
+        setSelectedUid(null); setNotice(`${UNIT_MAP[unit.unitId].name} moved onto the Board.`); tone(480); return;
+      }
+    }
+    const nextUid = selectedUid === unit.uid ? null : unit.uid;
+    setSelectedUid(nextUid);
+    setNotice(nextUid ? `${UNIT_MAP[unit.unitId].name} selected — tap a green cell or another unit to move.` : "Selection cleared.");
+  };
+
+  const tapBenchSlot = (index: number) => {
+    if (phase !== "planning" || !selectedUid) return;
+    const selected = units.find((unit) => unit.uid === selectedUid);
+    if (!selected) return;
+    if (selected.position === null) reorderBench(selected.uid, index);
+    else returnToBench(selected.uid);
   };
 
   const buyUnit = (unitId: string, index: number) => {
@@ -659,6 +685,7 @@ export default function Game() {
   const economy = incomeFor(gold, streak);
   const currentOdds = effectiveShopOdds(level, completedUnitIds(units));
   const draggedUnit = units.find((unit) => unit.uid === draggedUid);
+  const selectedUnit = units.find((unit) => unit.uid === selectedUid);
   const pendingSaleUnit = units.find((unit) => unit.uid === pendingSaleUid);
   const planningInspectedCombat = inspectedUnit && phase === "planning"
     ? inspectedUnit.position !== null
@@ -675,7 +702,7 @@ export default function Game() {
     <main className="landing-shell">
       <div className="ore-glow glow-one" /><div className="ore-glow glow-two" />
       <section className="landing-card">
-        <div className="brand-lockup"><img src="/pepepow-symbol.png" alt="PEPEPOW symbol" width="58" height="58" fetchPriority="high" /><div><span>PEPEPOW</span><small>COMBAT CLARITY · v0.9.2</small></div></div>
+        <div className="brand-lockup"><img src="/pepepow-symbol.png" alt="PEPEPOW symbol" width="58" height="58" fetchPriority="high" /><div><span>PEPEPOW</span><small>MOBILE TACTICS · v0.9.3</small></div></div>
         <div className="hero-copy"><p className="eyebrow">PREMIUM 2.5D · DETERMINISTIC COMBAT</p><h1>AUTO<br/><em>BATTLEGROUND</em></h1><p>Recruit a crew. Forge powerful synergies. Watch every strike, spell and tactical choice unfold — then inspect or replay the battle.</p></div>
         <div className="feature-rail"><span><b>{UNITS.length}</b> original units</span><span><b>{Object.keys(TRAIT_DETAILS).length}</b> traits</span><span><b>7</b> commanders</span><span><b>∞</b> evolving rounds</span></div>
         <div className="difficulty-picker" aria-label="AI difficulty"><span>AI DIFFICULTY</span>{(["Easy", "Normal", "Hard"] as AIDifficulty[]).map((entry) => <button key={entry} className={difficulty === entry ? "active" : ""} onClick={() => setDifficulty(entry)} aria-pressed={difficulty === entry}>{entry.toUpperCase()}</button>)}</div>
@@ -690,7 +717,7 @@ export default function Game() {
   );
 
   return (
-    <main className={`game-shell quality-${performance.quality} fps-${performance.targetFps}`} data-quality={performance.quality}>
+    <main className={`game-shell quality-${performance.quality} fps-${performance.targetFps} ${selectedUid ? "move-mode" : ""} ${draggedUid ? "is-dragging" : ""}`} data-quality={performance.quality}>
       <header className="topbar">
         <button className="mini-brand" onClick={() => setActive(false)} aria-label="Main menu"><img src="/pepepow-symbol.png" alt="" width="40" height="40" /><span>PEPEPOW <b>AUTO BATTLEGROUND</b></span></button>
         <div className="round-label"><small>ROUND</small><strong>{round}</strong><span>{isPveRound ? (isBoss ? "VOID BOSS" : "NEUTRAL CREW") : opponent?.name ?? "RIVAL SCOUTING"}</span></div>
@@ -726,8 +753,8 @@ export default function Game() {
             {phase === "battle" && <div className="battle-message" role="status" aria-live="polite"><strong>{battleLog[0]}</strong>{battleLog[1] && <small>{battleLog[1]}</small>}</div>}
           </div>
 
-          <div className={`bench-wrap ${draggedUid ? "drop-ready" : ""}`}><div className="bench-label"><span>BENCH</span><small>{bench.length}/{GAME_RULES.benchSize}</small></div><div className="bench">{Array.from({ length: GAME_RULES.benchSize }, (_, index) => { const unit = bench[index]; return <div className={`bench-slot ${dropTarget === `bench:${index}` ? "drop-current" : ""}`} data-drop-target={`bench:${index}`} key={index}>{unit && <UnitToken unit={unit} selected={selectedUid === unit.uid} compact interactive={phase === "planning"} invalid={invalidDropUid === unit.uid} onDragStart={() => beginDrag(unit.uid)} onDragMove={updateDropTarget} onDragFinish={finishPointerDrag} onSelect={() => selectUnit(unit)} onInspect={() => inspectUnit(unit)} />}</div>; })}</div></div>
-          <div className="notice-bar" role="status"><span className="notice-dot" />{notice}<div className="selection-actions">{selectedUid && phase === "planning" && <><button onClick={() => returnToBench()} disabled={bench.length >= GAME_RULES.benchSize}>TO BENCH</button><button onClick={sellSelected}>SELL · +{refundFor(units.find((unit) => unit.uid === selectedUid)!)}</button></>}{selectedItem && <span>SELECT A UNIT TO EQUIP</span>}</div></div>
+          <div className={`bench-wrap ${draggedUid ? "drop-ready" : ""}`}><div className="bench-label"><span>BENCH</span><small>{bench.length}/{GAME_RULES.benchSize}</small></div><div className="bench">{Array.from({ length: GAME_RULES.benchSize }, (_, index) => { const unit = bench[index]; return <div className={`bench-slot ${dropTarget === `bench:${index}` ? "drop-current" : ""}`} data-drop-target={`bench:${index}`} key={index} onClick={() => { if (!unit) tapBenchSlot(index); }}>{unit && <UnitToken unit={unit} selected={selectedUid === unit.uid} compact interactive={phase === "planning"} invalid={invalidDropUid === unit.uid} onDragStart={() => beginDrag(unit.uid)} onDragMove={updateDropTarget} onDragFinish={finishPointerDrag} onSelect={() => selectUnit(unit)} onInspect={() => inspectUnit(unit)} />}</div>; })}</div></div>
+          <div className="notice-bar" role="status"><span className="notice-dot" /><span className="notice-copy">{notice}</span><div className="selection-actions">{selectedUnit && phase === "planning" && <><span className="mobile-move-copy">TAP UNIT / CELL</span><button onClick={() => inspectUnit(selectedUnit)}>INFO</button><button onClick={() => returnToBench()} disabled={selectedUnit.position !== null && bench.length >= GAME_RULES.benchSize}>TO BENCH</button><button onClick={sellSelected}>SELL · +{refundFor(selectedUnit)}</button></>}{selectedItem && <span>SELECT A UNIT TO EQUIP</span>}</div></div>
           <MobileStatusDock panel={mobilePanel} onPanel={setMobilePanel} rows={synergyRows} items={items} selectedItem={selectedItem} onSelectItem={(id) => { setSelectedItem(selectedItem === id ? null : id); setSelectedUid(null); }} onOpenTraitArchive={() => { setArchiveTab("traits"); setShowArchive(true); }} onOpenItemArchive={() => { setArchiveTab("items"); setShowArchive(true); }} />
         </section>
 
@@ -894,7 +921,7 @@ function ReplayOverlay({ record, onClose }: { record: BattleRecord; onClose: () 
 function ShopCard({ unitId, affordable, blocked, reminder, onBuy }: { unitId: string; affordable: boolean; blocked?: boolean; reminder?: string; onBuy: () => void }) {
   const unit = UNIT_MAP[unitId];
   return <button className={`shop-card ${affordable ? "" : "unaffordable"} ${blocked ? "bench-blocked" : ""} ${reminder === "UPGRADE!" ? "upgrade-ready" : reminder ? "owned-copy" : ""}`} onClick={onBuy} disabled={!affordable} title={blocked ? "Bench full — this recruit would not fuse immediately." : undefined} style={{ "--rarity": COST_COLORS[unit.cost], "--unit": unit.color } as React.CSSProperties}>
-    <div className="shop-art"><img src={`/units/${unit.id}.webp`} alt="" loading="lazy" decoding="async" /><span>{unit.icon}</span><i /></div><div className="shop-info"><b>{unit.name}</b><div>{unit.traits.map((trait) => <small key={trait}>{trait}</small>)}</div><p>{unit.skill}: {unit.skillText}</p></div><strong>● {unit.cost}</strong>
+    <div className="shop-art"><img src={`/units/${unit.id}.webp`} alt="" loading="lazy" decoding="async" /><span>{unit.icon}</span><i /></div><div className="shop-info"><b>{unit.name}</b><div>{unit.traits.map((trait, index) => <small key={trait} data-trait={trait} className={index === 0 ? "faction" : index === 1 ? "class" : "bonus-trait"}>{trait}</small>)}</div><p>{unit.skill}: {unit.skillText}</p></div><strong>● {unit.cost}</strong>
     {reminder && <mark>{reminder}</mark>}
     {blocked && <em>BENCH FULL</em>}
   </button>;

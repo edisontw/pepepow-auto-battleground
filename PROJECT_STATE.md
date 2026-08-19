@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-08-20
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/
-**Current deployed version:** v0.9.2 combat-clarity release
+**Current deployed version:** v0.9.3 mobile-tactics release
 **v0.9 base commit:** `599f614b430cc413a82e91d3cd407dd487a55866`; the art-unification release is published from the current GitHub `main`
 
 ## 1. Product / architecture invariants
@@ -20,8 +20,8 @@
 ## 2. Input / Board invariants
 
 - Shop: tap/click to buy.
-- Owned unit: short tap/click selects; stationary long press opens Unit Info; desktop right-click is fallback.
-- Movement uses drag-and-drop.
+- Owned unit: short tap/click selects. On touch screens, Unit Info opens only from the explicit `INFO` action; desktop stationary mouse hold and right-click remain shortcuts.
+- Movement supports drag-and-drop and tap-to-move. A selected unit can be moved or swapped by tapping a Board cell, another unit, or an empty Bench slot.
 - Sell only through an explicit Sell action/zone.
 - Invalid drop returns to origin; Board → Bench never sells.
 - Preferred drop resolution: Board → Bench → explicit Sell → return to origin.
@@ -68,6 +68,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Every faction/class has an authored SVG sigil under `public/synergies/`, reused in the Synergy list, mobile indicators, Unit Info and Game Archive.
 - The in-game `HOW TO PLAY` manual is updated for v0.9 with Synergy sigils, the six counter units, combat-effect colors, Assassin targeting and adaptive Hard-AI behavior.
 - v0.9.1 forces the current deployment shell to revalidate so the landing page and Game Archive consistently load the 33-unit roster instead of a cached 24-unit bundle.
+- v0.9.3 adds mobile tap-to-move and tap-to-swap, keeps the drag preview above the finger, enlarges the usable Board, and converts Unit Info into a compact deliberate bottom sheet that stays above the Shop.
 - The default `build` command now regenerates the validated Sites/Vinext `dist` artifact; use `build:next` for a conventional standalone Next.js build. This prevents checkpoints from republishing a stale v0.5 artifact.
 
 ## 6. Replay / responsive presentation
@@ -76,7 +77,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Desktop Replay has explicit 8:6 geometry plus viewport width/height and minimum-size guards so generic low-height Board rules cannot collapse it to a tiny center board.
 - Desktop targets: 1920×1080, 1440×900, 1366×768.
 - Mobile targets: 390×844, 375×812, 360×800, 412×915.
-- Unit Info is a bounded desktop side sheet and a full-width scrollable mobile sheet. Its authored Synergy sigils use fixed 26px boxes and cannot inherit card padding or minimum height.
+- Unit Info is a bounded desktop side sheet and a compact, explicitly opened mobile bottom sheet above the Shop. Its authored Synergy sigils use fixed 26px boxes and cannot inherit card padding or minimum height.
 - `app/v08-fixes.css` is loaded after `v08-overrides.css` for narrowly scoped post-deploy corrections.
 - `app/v09-art.css` is loaded after v0.8 fixes, and site metadata describes the v0.9 release.
 
@@ -86,6 +87,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - Shop tier odds and Shop roll logic share one authoritative table.
 - Adding units changes eligible members within cost tiers; tier probabilities are unchanged.
 - Full Bench purchase is allowed only if the purchase atomically resolves into a legal upgrade.
+- Mobile Shop keeps all five recruits visible and shows faction, class and an optional third trait directly on every card.
 - Merge overflow equipment is returned for the player.
 - Shop odds tests must derive tier members from `UNITS`, never hard-code old rosters.
 
@@ -122,7 +124,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 
 ## 10. Validation / next step
 
-- The v0.9.2 Sites production build, rendered-worker check, ESLint and all 40 TypeScript regression tests pass.
+- The v0.9.3 Sites production build, rendered-worker check, ESLint and all 42 TypeScript regression tests pass. Preview interaction also confirms five Shop recruits render, selection enters move mode without opening Unit Info, and tap-to-place reaches the Board rules.
 - The mirrored matchup harness was run at 128 fixed seeds per side/pairing. Mirroring removes top/bottom spawn bias and makes self-matchups 50%.
 - The matrix is intentionally diagnostic: optimized Arcanist/Cyber shells still lack two reliable counters and must remain a balance warning rather than being declared solved.
 - Before deployment, run the full harness after any tuning, then visually smoke-test Synergy sigils/VFX at 1366×768 and one supported mobile viewport.
