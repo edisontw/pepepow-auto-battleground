@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PEPEPOW Auto Battleground",
-  description: "PEPEPOW Auto Battleground v0.9.3 — mobile tap-to-swap controls, readable Shop traits, clearer combat feedback, deterministic replays, and adaptive AI commanders.",
+  description: "PEPEPOW Auto Battleground v0.9.4 — clearer desktop and mobile combat UI, tap-to-swap controls, deterministic replays, and adaptive AI commanders.",
   other: {
     "codex-preview": "development",
   },

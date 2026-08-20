@@ -199,7 +199,7 @@
   .projectile-layer>span.vfx-area:after { width:24px; height:24px; right:-12px; }
   .projectile-layer>span.vfx-piercing { height:4px; }
   .projectile-layer>span.vfx-piercing:before { height:5px; }
-  .game-shell { --shop-h:140px; }
+  .game-shell { --shop-h:154px; }
   .arena-panel { grid-template-rows:22px auto 44px 32px; gap:2px; padding-bottom:38px; }
   .battle-board { width:calc(100% + 4px); max-width:none; margin:2px -2px 4px; aspect-ratio:8/7; }
   .board-cell { touch-action:manipulation; }
@@ -215,7 +215,7 @@
   .move-mode .notice-copy,.move-mode .notice-dot { display:none; }
   .move-mode .selection-actions { width:100%; margin:0; display:grid; grid-template-columns:1.15fr .58fr .92fr .82fr; gap:3px; }
   .move-mode .selection-actions .mobile-move-copy { display:grid; place-items:center; color:#f3d06d; font:800 6.5px/1.1 var(--font-geist-mono),monospace; text-align:center; white-space:normal; }
-  .move-mode .selection-actions button { min-width:0; min-height:27px; padding:3px 2px; border-color:rgba(239,196,86,.32); font-size:6px; white-space:nowrap; }
+  .move-mode .selection-actions button { min-width:0; min-height:30px; padding:3px 2px; border-color:rgba(239,196,86,.32); font-size:6.8px; white-space:nowrap; }
   .move-mode .selection-actions button:first-of-type { color:#9edfff; border-color:rgba(90,196,235,.38); }
 
   .drag-ghost { width:50px; height:58px; transform:translate(-50%,-128%); opacity:.82; filter:drop-shadow(0 7px 6px #000); }
@@ -240,19 +240,61 @@
   .battle-message small { display:none; }
   .combat-float { font-size:8px; }
 
-  .shop-bar { grid-template-rows:80px 38px; }
+  .music-volume { display:none; }
+  .header-actions button { width:32px; height:32px; font-size:8px; }
+  .shop-bar { grid-template-rows:88px 44px; }
   .shop-market { grid-template-rows:14px minmax(0,1fr); }
   .shop-cards { grid-template-columns:repeat(5,minmax(0,1fr)); gap:3px; overflow:hidden; }
-  .shop-card { height:64px; min-width:0; grid-template-columns:1fr; grid-template-rows:32px 32px; touch-action:manipulation; }
+  .shop-card { height:72px; min-width:0; grid-template-columns:1fr; grid-template-rows:32px 40px; touch-action:manipulation; }
   .shop-art { grid-column:1; grid-row:1; min-width:0; }
   .shop-art img { width:100%; height:100%; object-fit:contain; }
-  .shop-info { grid-column:1; grid-row:2; min-width:0; padding:2px 2px 1px; display:grid; grid-template-rows:8px minmax(0,1fr); gap:1px; }
-  .shop-card .shop-info>b { font-size:6.5px; line-height:1; text-align:center; }
-  .shop-info>div { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-auto-rows:8px; gap:1px 2px; overflow:hidden; }
-  .shop-info>div small { min-width:0; display:block; padding:1px 2px; overflow:hidden; border:1px solid color-mix(in srgb,var(--sigil,#7fcfa0),transparent 55%); border-radius:2px; color:color-mix(in srgb,var(--sigil,#b7e3c3),#fff 18%); background:color-mix(in srgb,var(--sigil,#2d7043),transparent 86%); font:700 5px/1 var(--font-geist-mono),monospace; text-align:center; white-space:nowrap; text-overflow:ellipsis; }
-  .shop-info>div .bonus-trait { grid-column:1/-1; justify-self:center; max-width:90%; padding-inline:4px; }
+  .shop-info { grid-column:1; grid-row:2; min-width:0; padding:2px 3px; display:grid; grid-template-rows:9px minmax(0,1fr); gap:1px; }
+  .shop-card .shop-info>b { font-size:7.2px; line-height:1; text-align:center; }
+  .shop-info>div { min-width:0; display:grid; grid-template-columns:minmax(0,1fr); grid-auto-rows:9px; gap:1px; overflow:hidden; }
+  .shop-info>div small { min-width:0; display:block; padding:1px 2px; overflow:hidden; border:1px solid color-mix(in srgb,var(--sigil,#7fcfa0),transparent 48%); border-radius:2px; color:color-mix(in srgb,var(--sigil,#b7e3c3),#fff 28%); background:color-mix(in srgb,var(--sigil,#2d7043),transparent 82%); font:750 6px/1.05 var(--font-geist-mono),monospace; text-align:center; white-space:nowrap; text-overflow:ellipsis; }
+  .shop-info>div .bonus-trait { grid-column:auto; justify-self:stretch; max-width:none; padding-inline:2px; }
   .shop-info p { display:none; }
-  .shop-card>strong { top:2px; right:2px; padding:1px 2px; background:rgba(4,7,5,.82); font-size:6.5px; }
-  .shop-card>mark { font-size:5.5px; }
-  .shop-controls button,.shop-controls button:first-child,.battle-button { min-height:38px; height:38px; }
+  .shop-card>strong { top:2px; right:2px; padding:1px 2px; background:rgba(4,7,5,.86); font-size:7px; }
+  .shop-card>mark { font-size:6px; }
+  .shop-controls button,.shop-controls button:first-child,.battle-button { min-height:44px; height:44px; }
+  .shop-controls b { font-size:6.8px; }
+}
+
+/* v0.9.4 readability polish: retain the compact game frame while bringing high-value information
+   above the minimum practical reading size. */
+.notice-copy { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+@media(min-width:901px) {
+  .left-panel .trait { opacity:.68; }
+  .left-panel .trait.active { opacity:1; }
+  .trait small,.commander small,.shop-info p { color:#8e9b8e; }
+  .trait small { font-size:9.5px; }
+  .commander small { font-size:9.5px; }
+  .shop-odds { font-size:9px; }
+  .shop-controls b { font-size:10px; }
+  .shop-controls small { font-size:8.5px; color:#7d897e; }
+  .shop-info>b { font-size:11.5px; }
+  .shop-info small { font-size:8.5px; }
+  .shop-info p { font-size:8.5px; }
+  .notice-bar { font-size:10.5px; }
+  .bench-label { font-size:8.5px; }
+
+  .result-card { width:min(650px,95vw); }
+  .result-card>small { display:block; margin-top:8px; color:#a9b4a8; font-size:11px; }
+  .top-five-summary { gap:7px; margin-top:18px; }
+  .top-five-summary section { padding:8px; }
+  .top-five-summary section>b { font-size:8px; color:#98a497; }
+  .top-five-summary section>div { min-height:35px; grid-template-columns:20px 31px minmax(0,1fr) auto; gap:5px; }
+  .top-five-summary span { font-size:7.5px; }
+  .top-five-summary img { width:29px; height:32px; }
+  .top-five-summary strong { font-size:8.5px; }
+  .top-five-summary small { font-size:8.5px; }
+  .result-actions button { min-height:44px; font-size:11px; }
+}
+
+@media(max-width:600px) {
+  .result-card>small { display:block; margin-top:5px; color:#a9b4a8; font-size:9px; line-height:1.35; }
+  .top-five-summary section>b { font-size:7px; }
+  .top-five-summary strong,.top-five-summary small { font-size:8px; }
+  .result-actions button { min-height:42px; font-size:9px; }
 }

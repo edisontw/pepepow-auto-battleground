@@ -35,8 +35,23 @@ test("mobile formation editing supports tap-to-move without touch inspection pop
 test("mobile Shop keeps all five recruits visible with faction and class labels", () => {
   assert.match(game, /data-trait=\{trait\} className=\{index === 0 \? "faction" : index === 1 \? "class"/);
   assert.match(v09, /\.shop-cards \{ grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
-  assert.match(v09, /\.shop-info>div \{[^}]*display:grid;[^}]*grid-template-columns:minmax\(0,1fr\) minmax\(0,1fr\)/);
+  assert.match(v09, /\.shop-info>div \{[^}]*display:grid;[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.match(v09, /\.shop-info>div small \{[^}]*display:block/);
+});
+
+test("v0.9.4 keeps mobile recruit labels and primary controls readable", () => {
+  assert.match(v09, /\.game-shell \{ --shop-h:154px; \}/);
+  assert.match(v09, /\.shop-card \{[^}]*height:72px;[^}]*grid-template-rows:32px 40px/);
+  assert.match(v09, /\.shop-info>div small \{[^}]*font:750 6px\/1\.05/);
+  assert.match(v09, /\.shop-controls button,\.shop-controls button:first-child,\.battle-button \{[^}]*min-height:44px/);
+  assert.match(v09, /\.music-volume \{ display:none; \}/);
+});
+
+test("desktop and result summaries receive the readability pass", () => {
+  assert.match(v09, /@media\(min-width:901px\)[\s\S]*?\.shop-info>b \{ font-size:11\.5px; \}/);
+  assert.match(v09, /\.result-card \{ width:min\(650px,95vw\); \}/);
+  assert.match(v09, /\.top-five-summary strong \{ font-size:8\.5px; \}/);
+  assert.match(v09, /\.result-actions button \{ min-height:44px; font-size:11px; \}/);
 });
 
 test("low-height desktop shop stretches inside its actual grid track", () => {

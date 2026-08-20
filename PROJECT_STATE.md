@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-08-20
 **Deployed site:** https://pepepow-auto-battleground.edisonhuang.chatgpt.site/
-**Current deployed version:** v0.9.3 mobile-tactics release
+**Current deployed version:** v0.9.4 readability-polish release
 **v0.9 base commit:** `599f614b430cc413a82e91d3cd407dd487a55866`; the art-unification release is published from the current GitHub `main`
 
 ## 1. Product / architecture invariants
@@ -69,6 +69,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 - The in-game `HOW TO PLAY` manual is updated for v0.9 with Synergy sigils, the six counter units, combat-effect colors, Assassin targeting and adaptive Hard-AI behavior.
 - v0.9.1 forces the current deployment shell to revalidate so the landing page and Game Archive consistently load the 33-unit roster instead of a cached 24-unit bundle.
 - v0.9.3 adds mobile tap-to-move and tap-to-swap, keeps the drag preview above the finger, enlarges the usable Board, and converts Unit Info into a compact deliberate bottom sheet that stays above the Shop.
+- v0.9.4 raises desktop sidebar, Shop and result-summary readability without enlarging the fixed game frame. On mobile, all five recruits remain visible while names and full trait labels use a taller, higher-contrast card; primary Shop/Battle controls meet a 44px touch target and the crowded volume slider is hidden while SFX/music toggles remain available.
 - The default `build` command now regenerates the validated Sites/Vinext `dist` artifact; use `build:next` for a conventional standalone Next.js build. This prevents checkpoints from republishing a stale v0.5 artifact.
 
 ## 6. Replay / responsive presentation
@@ -124,7 +125,7 @@ New counterplay units: Rift Breaker (shield break), Mire Chemist (anti-heal), Si
 
 ## 10. Validation / next step
 
-- The v0.9.3 Sites production build, rendered-worker check, ESLint and all 42 TypeScript regression tests pass. Preview interaction also confirms five Shop recruits render, selection enters move mode without opening Unit Info, and tap-to-place reaches the Board rules.
+- The v0.9.4 Sites production build, rendered-worker check, ESLint and all 44 TypeScript regression tests pass. Preview interaction confirms the desktop planning/result views remain within the fixed frame; responsive contract checks confirm the mobile Shop retains five recruits, full trait labels and 44px primary controls.
 - The mirrored matchup harness was run at 128 fixed seeds per side/pairing. Mirroring removes top/bottom spawn bias and makes self-matchups 50%.
 - The matrix is intentionally diagnostic: optimized Arcanist/Cyber shells still lack two reliable counters and must remain a balance warning rather than being declared solved.
 - Before deployment, run the full harness after any tuning, then visually smoke-test Synergy sigils/VFX at 1366×768 and one supported mobile viewport.
