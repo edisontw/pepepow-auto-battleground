@@ -1,6 +1,28 @@
 "use client";
 
-export type AnalyticsEventName = "start" | "round_reached" | "restart" | "session_end" | "fps_sample";
+export type AnalyticsEventName = "start" | "continue" | "game_over" | "round_reached" | "restart" | "session_end" | "fps_sample";
+
+type GtagWindow = Window & {
+  gtag?: (...args: unknown[]) => void;
+};
+
+function trackGa4(name: AnalyticsEventName, payload: Record<string, string | number | boolean | null>) {
+  const gtag = (window as GtagWindow).gtag;
+  if (!gtag) return;
+  if (name === "start" || name === "restart") {
+    gtag("event", "game_start", {
+      difficulty: payload.difficulty,
+      start_type: name === "restart" ? "restart" : "new",
+    });
+  } else if (name === "continue") {
+    gtag("event", "game_continue", { difficulty: payload.difficulty });
+  } else if (name === "game_over") {
+    gtag("event", "game_over", {
+      result: payload.result,
+      difficulty: payload.difficulty,
+    });
+  }
+}
 
 const SESSION_KEY = "ppab-anon-session";
 
@@ -16,6 +38,7 @@ function sessionId() {
 
 export function trackAnonymous(name: AnalyticsEventName, payload: Record<string, string | number | boolean | null> = {}, useBeacon = false) {
   if (typeof window === "undefined") return;
+  trackGa4(name, payload);
   const body = JSON.stringify({
     name,
     sessionId: sessionId(),

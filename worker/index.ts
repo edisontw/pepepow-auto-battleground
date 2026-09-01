@@ -19,7 +19,7 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
-const analyticsEvents = new Set(["start", "round_reached", "restart", "session_end", "fps_sample"]);
+const analyticsEvents = new Set(["start", "continue", "game_over", "round_reached", "restart", "session_end", "fps_sample"]);
 let analyticsReady = false;
 
 async function handleAnalytics(request: Request, env: Env) {

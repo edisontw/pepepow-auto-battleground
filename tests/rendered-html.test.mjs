@@ -29,5 +29,8 @@ test("renders development preview metadata", async () => {
     response.headers.get("content-type") ?? "",
     /^text\/html\b/i,
   );
-  assert.match(await response.text(), developmentPreviewMeta);
+  const html = await response.text();
+  assert.match(html, developmentPreviewMeta);
+  assert.equal((html.match(/G-LR88J4FNE2/g) ?? []).length, 2);
+  assert.match(html, /googletagmanager\.com\/gtag\/js/);
 });

@@ -614,9 +614,9 @@ export default function Game() {
       setItems((current) => [...current, drop]); setNotice(`Victory! You recovered ${ITEMS.find((item) => item.id === drop)?.name}.`);
     } else setNotice(won ? `Victory — ${combatResult.survivors} allies survived.` : draw ? "The battle ended in a draw." : `Defeat — your commander took ${damage} damage.`);
     resolveAIField(won);
-    if (nextHealth <= 0) { setPhase("gameover"); localStorage.removeItem(SAVE_KEY); setHasSave(false); tone(90, .6, "sawtooth"); }
+    if (nextHealth <= 0) { setPhase("gameover"); localStorage.removeItem(SAVE_KEY); setHasSave(false); trackAnonymous("game_over", { result: "defeat", difficulty }); tone(90, .6, "sawtooth"); }
     else { setPhase("result"); tone(won ? 760 : 110, won ? .3 : .45, won ? "triangle" : "sawtooth"); }
-  }, [combatResult, round, health, pve, resolveAIField, tone]);
+  }, [combatResult, round, health, pve, resolveAIField, tone, difficulty]);
 
   useEffect(() => {
     if (phase !== "battle" || !combatResult || revealingEnemy) return;
@@ -634,7 +634,7 @@ export default function Game() {
     if (advanceRoundRef.current === round) return;
     advanceRoundRef.current = round;
     const survivingAI = ais.filter((ai) => ai.alive);
-    if (!survivingAI.length) { setPhase("gameover"); setNotice("You are the last commander standing!"); localStorage.removeItem(SAVE_KEY); setHasSave(false); return; }
+    if (!survivingAI.length) { setPhase("gameover"); setNotice("You are the last commander standing!"); localStorage.removeItem(SAVE_KEY); setHasSave(false); trackAnonymous("game_over", { result: "victory", difficulty }); return; }
     const income = incomeFor(gold, streak);
     const passiveXp = passiveXpForRound(round);
     const progression = applyXp(level, xp, passiveXp);
@@ -660,7 +660,7 @@ export default function Game() {
     advanceRoundRef.current = null;
     setSessionSeed(nextSeed); setRound(1); setGold(10); setHealth(100); setLevel(2); setXp(0); setUnits(starters); setItems([]); setAis(createAICommanders(difficulty, createSeededRandom(mixSeed(nextSeed, 0xa11)))); setShop(rollShop(2)); setLocked(false); setSelectedUid(null); setSelectedItem(null); setInspectedUnit(null); setInspectedCombat(null); setStreak(0); setTimer(GAME_RULES.planningSeconds); setStats(newStats()); setPhase("planning"); setActive(true); setHasSave(true); setNotice("Opening crew randomized. Your first neutral encounter is ahead."); tone(520, .16, "triangle"); unlockMusic();
     sessionStartedAt.current = Date.now();
-    trackAnonymous(restarting ? "restart" : "start", { seed: nextSeed, fps: performance.measuredFps, quality: performance.quality });
+    trackAnonymous(restarting ? "restart" : "start", { seed: nextSeed, fps: performance.measuredFps, quality: performance.quality, difficulty });
   };
 
   const continueRun = () => {
@@ -670,6 +670,7 @@ export default function Game() {
       const restoredDifficulty = save.difficulty ?? "Normal";
       advanceRoundRef.current = null;
       setDifficulty(restoredDifficulty); setSessionSeed(save.sessionSeed ?? 1); setRound(save.round); setGold(save.gold); setHealth(save.health); setLevel(save.level); setXp(save.xp); setUnits(save.units); setItems(save.items); setAis(migrateAICommanders(save.ais, restoredDifficulty, createSeededRandom(mixSeed(save.sessionSeed ?? 1, 0x5a9e)))); setStreak(save.streak); setStats(save.stats); setShop(save.shop.map((unitId) => completed.has(unitId) ? "" : unitId)); setLocked(save.locked); setTimer(GAME_RULES.planningSeconds); setPhase("planning"); setActive(true); setNotice("Expedition restored."); unlockMusic();
+      trackAnonymous("continue", { difficulty: restoredDifficulty });
     } catch { localStorage.removeItem(SAVE_KEY); setHasSave(false); startNew(); }
   };
 
