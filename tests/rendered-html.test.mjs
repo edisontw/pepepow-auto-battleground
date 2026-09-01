@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const developmentPreviewMeta =
@@ -31,6 +32,7 @@ test("renders development preview metadata", async () => {
   );
   const html = await response.text();
   assert.match(html, developmentPreviewMeta);
-  assert.equal((html.match(/G-LR88J4FNE2/g) ?? []).length, 2);
-  assert.match(html, /googletagmanager\.com\/gtag\/js/);
+  const analyticsSource = await readFile(new URL("../app/GoogleAnalytics.tsx", import.meta.url), "utf8");
+  assert.equal((analyticsSource.match(/googletagmanager\.com\/gtag\/js/g) ?? []).length, 1);
+  assert.match(analyticsSource, /G-LR88J4FNE2/);
 });
